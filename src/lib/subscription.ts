@@ -1,4 +1,4 @@
-import { PLANS, type PlanKey } from './stripe';
+import { PLANS, stripe, type PlanKey } from './stripe';
 
 export type SubscriptionStatus =
   | 'active'
