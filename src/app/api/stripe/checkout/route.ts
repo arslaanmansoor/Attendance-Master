@@ -1,0 +1,66 @@
+import { NextResponse } from 'next/server';
+import { stripe, getPlan, type PlanKey } from '@/lib/stripe';
+import { createClient } from '@/lib/supabase/server';
+import { hasActiveSubscription } from '@/lib/subscription';
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { planKey } = body as { planKey?: string };
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Please log in to subscribe.' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, stripe_customer_id, subscription_status')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Only admin accounts can manage billing.' }, { status: 403 });
+    }
+
+    if (hasActiveSubscription(profile.subscription_status)) {
+      return NextResponse.json(
+        { success: false, error: 'You already have an active subscription. Use Manage Billing to change plans.' },
+        { status: 400 }
+      );
+    }
+
+    const resolvedPlanKey = (planKey ?? 'PRO') as PlanKey;
+    const plan = getPlan(resolvedPlanKey);
+    const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: plan.priceId, quantity: 1 }],
+      ...(profile.stripe_customer_id
+        ? { customer: profile.stripe_customer_id }
+        : { customer_email: user.email }),
+      subscription_data: {
+        trial_period_days: 14,
+        metadata: {
+          plan_key: resolvedPlanKey,
+          supabase_user_id: user.id,
+        },
+      },
+      metadata: {
+        plan_key: resolvedPlanKey,
+        supabase_user_id: user.id,
+      },
+      success_url: `${origin}/settings/billing?success=true`,
+      cancel_url: `${origin}/pricing?canceled=true`,
+    });
+
+    return NextResponse.json({ success: true, url: session.url });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Internal Server Error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}

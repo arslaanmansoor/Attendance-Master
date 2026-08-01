@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Premium workforce dashboard for attendance, payroll, and team operations."
+    />
+    <title>Attendance Master</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" style="background: #000; border: 2px solid #D4AF37;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" stroke="#D4AF37" stroke-width="1.5"/>
+              <text x="12" y="16" text-anchor="middle" fill="#D4AF37" font-size="10" font-weight="bold" font-family="serif">AM</text>
+            </svg>
+          </div>
+          <div>
+            <div>Attendance Master</div>
+            <div class="muted">HR OS</div>
+          </div>
+        </div>
+
+        <nav class="nav-group" aria-label="Sidebar navigation">
+          <a class="nav-item active" href="#">
+            <span class="lead"><span>◉</span> Dashboard</span>
+            <span class="badge">Live</span>
+          </a>
+          <a class="nav-item" href="#">
+            <span class="lead"><span>◌</span> Employees</span>
+          </a>
+          <a class="nav-item" href="#">
+            <span class="lead"><span>◌</span> Attendance</span>
+            <span class="badge">12</span>
+          </a>
+          <a class="nav-item" href="#">
+            <span class="lead"><span>◌</span> Payroll</span>
+          </a>
+          <a class="nav-item" href="#">
+            <span class="lead"><span>◌</span> Projects</span>
+          </a>
+          <a class="nav-item" href="#">
+            <span class="lead"><span>◌</span> Reports</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-card">
+          <div class="pill">● Premium plan</div>
+          <h4 style="margin: 10px 0 6px;">Operations synced</h4>
+          <p class="muted" style="margin: 0;">Stay ahead of absences, payouts, and approvals in one place.</p>
+        </div>
+      </aside>
+
+      <div class="main-panel">
+        <header class="topbar">
+          <label class="search" aria-label="Global search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="6"></circle>
+              <path d="m20 20-4.2-4.2"></path>
+            </svg>
+            <input type="search" placeholder="Search employees, teams, reports" />
+          </label>
+          <div class="topbar-actions">
+            <button class="ghost-btn" type="button">Attendance Master</button>
+            <button class="icon-btn" type="button" aria-label="Notifications">🔔</button>
+            <button class="icon-btn" type="button" aria-label="Theme toggle" data-theme-toggle>☀</button>
+            <div class="avatar-pill" aria-label="Profile menu">
+              <span>AL</span>
+              Alicia
+            </div>
+          </div>
+        </header>
+
+        <main class="content">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <span class="crumb">Home</span>
+            <span>/</span>
+            <span class="crumb">Operations</span>
+            <span>/</span>
+            <span class="crumb">Dashboard</span>
+          </nav>
+
+          <section class="hero" aria-label="Overview">
+            <div>
+              <p class="eyebrow">Workforce command center</p>
+              <h1>Operations at a glance, beautifully organized.</h1>
+              <p>Monitor attendance, payroll, approvals, and team momentum from a polished dashboard built for ambitious teams.</p>
+              <div class="hero-actions">
+                <button class="primary-btn" type="button">Open daily brief</button>
+                <button class="ghost-btn" type="button">Export snapshot</button>
+              </div>
+            </div>
+            <div class="hero-metric">
+              <div class="pill">● Attendance health</div>
+              <div style="margin-top: 10px;">
+                <div class="muted">Current rate</div>
+                <div class="value">94.6%</div>
+              </div>
+              <div class="badges" style="margin-top: 10px;">
+                <span class="badge-chip success">+3.2% vs last week</span>
+                <span class="badge-chip info">19 on time</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="kpi-grid" aria-label="Key metrics">
+            <article class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-title">Total employees</div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9.5" cy="7" r="3"></circle>
+                  <path d="M20 8v6"></path>
+                  <path d="M23 11h-6"></path>
+                </svg>
+              </div>
+              <div class="kpi-value">1,284</div>
+              <div class="kpi-trend">▲ 8.1% this month</div>
+            </article>
+            <article class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-title">Present today</div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 21s7-4.35 7-10a4 4 0 0 0-7-2.3A4 4 0 0 0 5 11c0 5.65 7 10 7 10Z"></path>
+                </svg>
+              </div>
+              <div class="kpi-value">1,126</div>
+              <div class="kpi-trend">▲ 92 on track</div>
+            </article>
+            <article class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-title">Late arrivals</div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="kpi-value">37</div>
+              <div class="kpi-trend" style="color: var(--warning);">▼ 6% improvement</div>
+            </article>
+            <article class="card kpi-card">
+              <div class="kpi-top">
+                <div class="kpi-title">Payroll summary</div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                  <path d="M7 8h10"></path>
+                  <path d="M7 12h10"></path>
+                  <path d="M7 16h6"></path>
+                </svg>
+              </div>
+              <div class="kpi-value">$482k</div>
+              <div class="kpi-trend">▲ 12.4% this cycle</div>
+            </article>
+          </section>
+
+          <section class="widget-grid" aria-label="Additional dashboard widgets">
+            <article class="card mini-card">
+              <div class="kpi-title">Employees absent</div>
+              <div class="value">58</div>
+              <div class="muted">5.2% of workforce</div>
+            </article>
+            <article class="card mini-card">
+              <div class="kpi-title">Monthly salary expense</div>
+              <div class="value">$1.24M</div>
+              <div class="muted">Budget pacing +7.3%</div>
+            </article>
+            <article class="card mini-card">
+              <div class="kpi-title">Overtime hours</div>
+              <div class="value">184h</div>
+              <div class="muted">Ops team leading</div>
+            </article>
+            <article class="card mini-card">
+              <div class="kpi-title">Active projects</div>
+              <div class="value">24</div>
+              <div class="muted">6 on critical path</div>
+            </article>
+            <article class="card mini-card">
+              <div class="kpi-title">Attendance rate</div>
+              <div class="value">94.6%</div>
+              <div class="muted">Healthy trend this week</div>
+            </article>
+            <article class="card mini-card">
+              <div class="kpi-title">Weekly trend</div>
+              <div class="mini-bar" aria-hidden="true">
+                <span style="height: 44%"></span>
+                <span style="height: 60%"></span>
+                <span style="height: 52%"></span>
+                <span style="height: 70%"></span>
+                <span style="height: 80%"></span>
+                <span style="height: 92%"></span>
+              </div>
+            </article>
+          </section>
+
+          <section class="panel-grid">
+            <article class="card chart-card">
+              <div class="card-head">
+                <h3>Attendance trend</h3>
+                <div class="segmented" role="tablist" aria-label="Chart range">
+                  <button class="active" type="button" data-range="7d">7D</button>
+                  <button type="button" data-range="30d">30D</button>
+                  <button type="button" data-range="90d">90D</button>
+                </div>
+              </div>
+              <svg id="chartCanvas" viewBox="0 0 560 260" role="img" aria-label="Interactive attendance trend chart"></svg>
+              <div class="chart-info">
+                <span><span class="legend-dot" style="background: var(--primary);"></span>Attendance</span>
+                <span><span class="legend-dot" style="background: var(--info);"></span>On-time arrivals</span>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <h3>Department pulse</h3>
+                <a href="#" class="muted">View all</a>
+              </div>
+              <div class="list-stack">
+                <div class="list-item">
+                  <div>
+                    <strong>Operations</strong>
+                    <div class="muted">91% punctuality</div>
+                  </div>
+                  <span class="badge-chip success">High</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>Engineering</strong>
+                    <div class="muted">88% productivity</div>
+                  </div>
+                  <span class="badge-chip info">Stable</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>Finance</strong>
+                    <div class="muted">12 approvals pending</div>
+                  </div>
+                  <span class="badge-chip warning">Watch</span>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="panel-grid" style="grid-template-columns: 1.05fr 0.95fr;">
+            <article class="card chart-card">
+              <div class="card-head">
+                <h3>Payroll trend</h3>
+                <button class="ghost-btn" type="button">Export</button>
+              </div>
+              <svg viewBox="0 0 560 260" role="img" aria-label="Payroll trend chart">
+                <rect x="24" y="24" width="512" height="212" rx="24" fill="rgba(37, 99, 235, 0.08)"></rect>
+                <path d="M60 188 C118 160, 146 136, 178 140 S248 178, 282 152 S376 96, 430 106 S500 138, 500 118" fill="none" stroke="var(--primary)" stroke-width="4" stroke-linecap="round"></path>
+                <path d="M60 188 C118 160, 146 136, 178 140 S248 178, 282 152 S376 96, 430 106 S500 138, 500 118" stroke="rgba(14,165,233,0.24)" stroke-width="18" stroke-linecap="round" fill="none"></path>
+              </svg>
+            </article>
+            <article class="card">
+              <div class="card-head">
+                <h3>Recent activities</h3>
+                <a href="#" class="muted">See timeline</a>
+              </div>
+              <div class="small-list">
+                <div class="list-item">
+                  <div>
+                    <strong>Payroll approved</strong>
+                    <div class="muted">12 mins ago</div>
+                  </div>
+                  <span class="badge-chip success">Done</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>New leave request</strong>
+                    <div class="muted">28 mins ago</div>
+                  </div>
+                  <span class="badge-chip warning">Pending</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>Project milestone</strong>
+                    <div class="muted">1 hr ago</div>
+                  </div>
+                  <span class="badge-chip info">Tracked</span>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="bottom-grid">
+            <article class="card">
+              <div class="card-head">
+                <h3>Leave requests</h3>
+                <button class="ghost-btn" type="button">Manage</button>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Type</th>
+                    <th>Dates</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Alicia Chen</td>
+                    <td>Vacation</td>
+                    <td>Aug 14–18</td>
+                    <td><span class="status approved">Approved</span></td>
+                  </tr>
+                  <tr>
+                    <td>Marcus Lee</td>
+                    <td>Sick leave</td>
+                    <td>Aug 17</td>
+                    <td><span class="status pending">Pending</span></td>
+                  </tr>
+                  <tr>
+                    <td>Diana Ortiz</td>
+                    <td>Personal</td>
+                    <td>Aug 21–22</td>
+                    <td><span class="status review">Review</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <div class="list-stack">
+              <article class="card">
+                <div class="card-head">
+                  <h3>Upcoming holidays</h3>
+                  <a href="#" class="muted">Calendar</a>
+                </div>
+                <div class="list-stack">
+                  <div class="list-item">
+                    <div>
+                      <strong>National Day</strong>
+                      <div class="muted">Monday • 3 days away</div>
+                    </div>
+                    <span class="badge-chip info">Public</span>
+                  </div>
+                  <div class="list-item">
+                    <div>
+                      <strong>Company Retreat</strong>
+                      <div class="muted">Thursday • 5 days away</div>
+                    </div>
+                    <span class="badge-chip warning">Team</span>
+                  </div>
+                </div>
+              </article>
+              <article class="card">
+                <div class="card-head">
+                  <h3>Quick links</h3>
+                </div>
+                <div class="footer-links">
+                  <a href="#">Payroll pack</a>
+                  <a href="#">Holiday policy</a>
+                  <a href="#">Export guide</a>
+                </div>
+              </article>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
