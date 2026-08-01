@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 import {
   Users,
@@ -76,6 +79,7 @@ interface BillingSummary {
   statusLabel: string;
   planKey: string | null;
   planName: string;
+  subscriptionPriceId: string | null;
   hasActiveSubscription: boolean;
   hasStripeCustomer: boolean;
   trialEndsAt: string | null;
@@ -135,12 +139,15 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(initialLeaveRequests);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [showBriefModal, setShowBriefModal] = useState(false);
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const router = useRouter();
 
-  // Initialize theme and billing data
+  // Initialize theme, auth state, and billing data
   useEffect(() => {
     const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (stored) {
@@ -153,16 +160,48 @@ export default function DashboardPage() {
       document.documentElement.setAttribute('data-theme', initial);
     }
 
-    fetch('/api/billing')
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.error) {
-          setBilling(data);
-        }
-      })
-      .catch(() => {
-        // Ignore billing failures to keep dashboard functional
-      });
+    const supabase = createClient();
+
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getUser();
+      setAuthUser(data.user ?? null);
+      setAuthLoading(false);
+
+      if (data.user) {
+        fetch('/api/billing')
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.error) {
+              setBilling(data);
+            }
+          })
+          .catch(() => {
+            // Ignore billing failures to keep dashboard functional
+          });
+      }
+    };
+
+    initAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setAuthUser(session?.user ?? null);
+      if (session?.user) {
+        fetch('/api/billing')
+          .then((res) => res.json())
+          .then((data) => {
+            if (!data.error) {
+              setBilling(data);
+            }
+          })
+          .catch(() => {});
+      } else {
+        setBilling(null);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const toggleTheme = () => {
@@ -180,8 +219,13 @@ export default function DashboardPage() {
   };
 
   const handleSelectPlan = async (planKey: string) => {
+    if (!authUser) {
+      router.push('/login');
+      return;
+    }
+
     if (billing?.role !== 'admin') {
-      triggerToast('Only admin users can start Stripe checkout. Please sign in with an admin account.');
+      triggerToast('Only admin users can start Stripe checkout. Please use an admin account.');
       return;
     }
 
@@ -385,10 +429,26 @@ export default function DashboardPage() {
               {theme === 'dark' ? <Moon width={18} height={18} /> : <Sun width={18} height={18} />}
             </button>
 
-            <div className="avatar-pill" aria-label="Profile menu">
-              <span style={{ fontWeight: 600 }}>AL</span>
-              <span>Alicia</span>
-            </div>
+            {authLoading ? (
+              <div className="avatar-pill" aria-label="Auth status">
+                <span style={{ fontWeight: 600 }}>…</span>
+                <span>Loading</span>
+              </div>
+            ) : authUser ? (
+              <div className="avatar-pill" aria-label="Profile menu">
+                <span style={{ fontWeight: 600 }}>{String(authUser.email?.[0] ?? 'U').toUpperCase()}</span>
+                <span>{String(authUser.email?.split('@')[0] ?? 'User')}</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <Link href="/login" className="ghost-btn" style={{ padding: '10px 14px' }}>
+                  Sign In
+                </Link>
+                <Link href="/register" className="primary-btn" style={{ padding: '10px 14px' }}>
+                  Register
+                </Link>
+              </div>
+            )}
           </div>
         </header>
 
@@ -514,50 +574,129 @@ export default function DashboardPage() {
             </section>
           )}
 
-          {billing && (
-            <section id="landing-pricing" className="landing-pricing" aria-label="Pricing plans" style={{ marginBottom: '24px' }}>
-              <div className="pricing-header card">
-                <p className="eyebrow">Landing page billing</p>
-                <h2>Select the right Stripe subscription plan</h2>
-                <p className="muted">
-                  {billing.role === 'admin'
+          <section id="landing-pricing" className="landing-pricing" aria-label="Pricing plans" style={{ marginBottom: '24px' }}>
+            <div className="pricing-header card">
+              <p className="eyebrow">Landing page billing</p>
+              <h2>Select the right Stripe subscription plan</h2>
+              <p className="muted">
+                {authUser
+                  ? billing?.role === 'admin'
                     ? 'Admin users can complete checkout directly from the landing page. Choose the plan and proceed to Stripe payment.'
-                    : 'Review the plans and ask your admin to complete the subscription checkout.'}
-                </p>
-              </div>
+                    : 'Your account is signed in. Ask your organization admin to complete billing or sign in with an admin account.'
+                  : 'Sign in or register to compare plans and start Stripe checkout. Free trial starts after signup.'}
+              </p>
+            </div>
 
-              <div className="pricing-grid">
-                {dashboardPlans.map((plan) => {
-                  const isCurrent = billing.planKey === plan.key;
-                  return (
-                    <article key={plan.key} className={`pricing-card ${isCurrent ? 'pricing-card-current' : ''}`}>
-                      <div className="pricing-card-top">
-                        <div>
-                          <p className="eyebrow" style={{ marginBottom: '8px' }}>{plan.badge}</p>
-                          <h3>{plan.name}</h3>
-                        </div>
-                        <div className="pricing-value">{plan.priceLabel}</div>
-                      </div>
-                      <p className="muted" style={{ margin: '10px 0 18px' }}>{plan.tagline}</p>
-                      <ul className="pricing-features">
-                        {plan.features.map((feature, idx) => (
-                          <li key={idx}>{feature}</li>
-                        ))}
-                      </ul>
-                      <button
-                        type="button"
-                        className={isCurrent ? 'ghost-btn' : 'primary-btn'}
-                        onClick={() => !isCurrent && handleSelectPlan(plan.key)}
-                        disabled={isCurrent || loadingPlan === plan.key}
-                      >
-                        {isCurrent ? 'Current plan' : loadingPlan === plan.key ? 'Processing...' : 'Proceed to checkout'}
-                      </button>
-                    </article>
-                  );
-                })}
+            {!authUser && !authLoading && (
+              <div className="card" style={{ marginBottom: '20px', padding: '20px', display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700 }}>Ready to get started?</p>
+                  <p className="muted" style={{ margin: '8px 0 0' }}>
+                    Create an account or sign in to purchase a plan and access your Stripe billing portal.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <Link href="/login" className="ghost-btn" style={{ padding: '10px 18px' }}>
+                    Sign In
+                  </Link>
+                  <Link href="/register" className="primary-btn" style={{ padding: '10px 18px' }}>
+                    Register
+                  </Link>
+                </div>
               </div>
-            </section>
-          )}
+            )}
+
+            {authUser && billing?.hasActiveSubscription && (
+              <div className="pricing-status-card card">
+                <div className="pricing-status-top">
+                  <span className="badge-chip success">Active Stripe billing</span>
+                  <p className="subtle-bold" style={{ margin: '10px 0 4px' }}>
+                    {billing.planName}
+                  </p>
+                  <p className="muted" style={{ margin: '0 0 4px' }}>
+                    {billing.currentPeriodEnd
+                      ? `Next billing on ${new Date(billing.currentPeriodEnd).toLocaleDateString()}`
+                      : 'Stripe subscription is active.'}
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Subscription status: {billing.subscriptionStatus}
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Price ID: {billing.subscriptionPriceId ?? 'not available'}
+                  </p>
+                  {!billing.planKey && (
+                    <p className="muted" style={{ margin: 0 }}>
+                      Note: active Stripe plan is not mapped to a local plan key.
+                    </p>
+                  )}
+                </div>
+                <div className="pricing-status-actions">
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={() => window.location.assign('/settings/billing')}
+                  >
+                    Manage billing
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    onClick={() => window.location.assign('/pricing')}
+                  >
+                    Change plan
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="pricing-grid">
+              {dashboardPlans.map((plan) => {
+                const isCurrent = billing?.planKey === plan.key;
+                const canCheckout = authUser && billing?.role === 'admin';
+                const buttonLabel = isCurrent
+                  ? 'Current plan'
+                  : loadingPlan === plan.key
+                  ? 'Processing...'
+                  : !authUser
+                  ? 'Sign in to checkout'
+                  : billing?.role !== 'admin'
+                  ? 'Admin access required'
+                  : 'Proceed to checkout';
+
+                return (
+                  <article key={plan.key} className={`pricing-card ${isCurrent ? 'pricing-card-current' : ''}`}>
+                    <div className="pricing-card-top">
+                      <div>
+                        <p className="eyebrow" style={{ marginBottom: '8px' }}>{plan.badge}</p>
+                        <h3>{plan.name}</h3>
+                      </div>
+                      <div className="pricing-value">{plan.priceLabel}</div>
+                    </div>
+                    <p className="muted" style={{ margin: '10px 0 18px' }}>{plan.tagline}</p>
+                    <ul className="pricing-features">
+                      {plan.features.map((feature, idx) => (
+                        <li key={idx}>{feature}</li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className={isCurrent ? 'ghost-btn' : 'primary-btn'}
+                      onClick={() => {
+                        if (!isCurrent && canCheckout) {
+                          handleSelectPlan(plan.key);
+                        } else if (!authUser) {
+                          router.push('/login');
+                        }
+                      }}
+                      disabled={isCurrent || loadingPlan === plan.key || !canCheckout}
+                    >
+                      {buttonLabel}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
 
           {/* KPI Grid */}
           <section className="kpi-grid" aria-label="Key metrics">

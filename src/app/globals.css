@@ -822,6 +822,31 @@ select.form-input {
   border-color: var(--primary);
 }
 
+.pricing-status-card {
+  display: grid;
+  gap: 18px;
+  padding: 26px;
+  border-radius: var(--radius-xl);
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.pricing-status-top {
+  display: grid;
+  gap: 10px;
+}
+
+.pricing-status-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.subtle-bold {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
 .pricing-card-top {
   display: flex;
   justify-content: space-between;

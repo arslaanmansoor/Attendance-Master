@@ -32,9 +32,10 @@ export function getPlanLimits(planKey?: PlanKey | null) {
   return PLAN_LIMITS[planKey] ?? PLAN_LIMITS.PRO;
 }
 
-export function getPlanDisplayName(planKey?: PlanKey | null): string {
-  if (!planKey) return 'No plan';
-  return PLANS[planKey]?.name ?? 'Unknown plan';
+export function getPlanDisplayName(planKey?: PlanKey | null, priceId?: string | null): string {
+  if (planKey) return PLANS[planKey]?.name ?? 'Unknown plan';
+  if (priceId) return 'Active Stripe subscription';
+  return 'No plan';
 }
 
 export function statusLabel(status?: string | null): string {
