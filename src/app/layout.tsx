@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: 'Attendance Master | Premium HR OS',
   description: 'Premium workforce dashboard for attendance, payroll, and team operations.',
   keywords: ['attendance', 'hr os', 'workforce', 'payroll', 'dashboard', 'employee management'],
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
