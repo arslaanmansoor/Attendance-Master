@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Lock, Mail, User, Building, ArrowRight } from 'lucide-react';
+import { Lock, Mail, User, ArrowRight, Sparkles, CheckCircle2, ShieldCheck, Clock3 } from 'lucide-react';
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
@@ -21,7 +21,7 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -45,126 +45,111 @@ export default function RegisterPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg)',
-        padding: '24px',
-      }}
-    >
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          maxWidth: '440px',
-          padding: '36px',
-          background: 'var(--surface)',
-          boxShadow: 'var(--shadow-lg)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '12px',
-              background: '#000',
-              border: '2px solid #D4AF37',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <span style={{ color: '#D4AF37', fontWeight: 'bold', fontFamily: 'serif', fontSize: '1.2rem' }}>AM</span>
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Create Your Account</h2>
-          <p className="muted" style={{ marginTop: '4px' }}>Start managing workforce operations with Attendance Master</p>
+    <div className="auth-shell">
+      <aside className="auth-visual">
+        <div className="auth-badge">
+          <Sparkles size={16} />
+          Elevate your workforce ops
         </div>
+        <h1>Start faster with Attendance Master</h1>
+        <p>Launch attendance, leave, and payroll workflows with a premium experience your team will actually enjoy.</p>
 
-        {errorMsg && (
-          <div
-            style={{
-              background: 'var(--danger-soft)',
-              color: 'var(--danger)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.85rem',
-              marginBottom: '18px',
-            }}
-          >
-            {errorMsg}
+        <ul className="auth-list">
+          <li>
+            <CheckCircle2 size={18} />
+            Centralized attendance and staffing data
+          </li>
+          <li>
+            <ShieldCheck size={18} />
+            Role-based access and secure onboarding
+          </li>
+          <li>
+            <Clock3 size={18} />
+            Automated reminders for approvals and payroll
+          </li>
+        </ul>
+
+        <div className="auth-visual-card">
+          <div className="auth-visual-card-top">
+            <span>Launch in minutes</span>
+            <span className="pill">No heavy setup</span>
           </div>
-        )}
+          <div className="auth-visual-stat">
+            <strong>24/7</strong>
+            <span>Operational visibility</span>
+          </div>
+        </div>
+      </aside>
 
-        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-              Full Name
-            </label>
-            <div className="search" style={{ width: '100%' }}>
-              <User width={16} height={16} style={{ color: 'var(--muted)' }} />
-              <input
-                type="text"
-                placeholder="Alicia Chen"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
+      <div className="auth-panel">
+        <div className="card auth-card">
+          <div className="auth-brand">
+            <div className="auth-logo">
+              <span>AM</span>
+            </div>
+            <div>
+              <h2>Create your account</h2>
+              <p className="muted">Start managing workforce operations with a polished, modern experience</p>
             </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-              Work Email
-            </label>
-            <div className="search" style={{ width: '100%' }}>
-              <Mail width={16} height={16} style={{ color: 'var(--muted)' }} />
-              <input
-                type="email"
-                placeholder="alicia@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+          {errorMsg && <div className="form-error auth-alert">{errorMsg}</div>}
+
+          <form onSubmit={handleRegister} className="auth-form">
+            <div className="form-group">
+              <label className="form-label">Full name</label>
+              <div className="auth-input">
+                <User size={16} />
+                <input
+                  type="text"
+                  placeholder="Alicia Chen"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-              Password
-            </label>
-            <div className="search" style={{ width: '100%' }}>
-              <Lock width={16} height={16} style={{ color: 'var(--muted)' }} />
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+            <div className="form-group">
+              <label className="form-label">Work email</label>
+              <div className="auth-input">
+                <Mail size={16} />
+                <input
+                  type="email"
+                  placeholder="alicia@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
             </div>
+
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <div className="auth-input">
+                <Lock size={16} />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+              {loading ? 'Creating account...' : 'Get started free'} <ArrowRight size={16} />
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            <span className="muted">Already registered?</span>
+            <Link href="/login" className="auth-link">
+              Sign in
+            </Link>
           </div>
-
-          <button
-            type="submit"
-            className="primary-btn"
-            style={{ width: '100%', justifyContent: 'center', padding: '12px', marginTop: '8px' }}
-            disabled={loading}
-          >
-            {loading ? 'Creating Account...' : 'Get Started Free'} <ArrowRight width={16} height={16} />
-          </button>
-        </form>
-
-        <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem' }}>
-          <span className="muted">Already registered? </span>
-          <Link href="/login" style={{ fontWeight: 600 }}>
-            Sign In
-          </Link>
         </div>
       </div>
     </div>

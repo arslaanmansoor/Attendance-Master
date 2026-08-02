@@ -204,6 +204,12 @@ export default function DashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!authLoading && !authUser) {
+      router.replace('/login');
+    }
+  }, [authLoading, authUser, router]);
+
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
@@ -217,6 +223,30 @@ export default function DashboardPage() {
       setNotificationMsg(null);
     }, 3500);
   };
+
+  if (authLoading) {
+    return (
+      <div className="auth-shell">
+        <div className="auth-panel" style={{ width: '100%' }}>
+          <div className="card auth-card" style={{ textAlign: 'center' }}>
+            <div className="auth-brand" style={{ justifyContent: 'center' }}>
+              <div className="auth-logo">
+                <span>AM</span>
+              </div>
+              <div>
+                <h2>Preparing your workspace</h2>
+                <p className="muted">Checking authentication and billing state…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return null;
+  }
 
   const handleSelectPlan = async (planKey: string) => {
     if (!authUser) {
