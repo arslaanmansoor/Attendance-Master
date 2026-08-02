@@ -17,12 +17,12 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, stripe_customer_id, subscription_status')
+      .select('stripe_customer_id, subscription_status')
       .eq('id', user.id)
       .single();
 
-    if (profile?.role !== 'admin') {
-      return NextResponse.json({ success: false, error: 'Only admin accounts can manage billing.' }, { status: 403 });
+    if (!profile) {
+      return NextResponse.json({ success: false, error: 'User profile not found.' }, { status: 404 });
     }
 
     if (hasActiveSubscription(profile.subscription_status)) {
