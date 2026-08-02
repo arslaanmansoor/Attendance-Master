@@ -60,6 +60,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, url: session.url });
   } catch (err: unknown) {
+    console.error('Checkout error:', err);
     const message = err instanceof Error ? err.message : 'Internal Server Error';
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
