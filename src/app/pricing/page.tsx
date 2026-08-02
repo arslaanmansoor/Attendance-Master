@@ -1,11 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Sparkles } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function PricingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+    };
+    checkAuth();
+  }, []);
+
+  const handleBackClick = () => {
+    if (isAuthenticated) {
+      router.push('/');
+    } else {
+      router.push('/login');
+    }
+  };
 
   const handleSubscribe = async (planKey: string) => {
     try {
@@ -84,8 +104,8 @@ export default function PricingPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '40px 24px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <div style={{ marginBottom: '32px' }}>
-          <Link
-            href="/"
+          <button
+            onClick={handleBackClick}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -95,10 +115,17 @@ export default function PricingPage() {
               fontWeight: 500,
               textDecoration: 'none',
               marginBottom: '20px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'color var(--transition)',
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--muted)')}
           >
-            <ArrowLeft width={16} height={16} /> Back to Dashboard
-          </Link>
+            <ArrowLeft width={16} height={16} /> Back to {isAuthenticated ? 'Dashboard' : 'Login'}
+          </button>
 
           <div style={{ textAlign: 'center', maxWidth: '680px', margin: '0 auto' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: 'var(--radius-full)', background: 'var(--primary-soft)', marginBottom: '16px' }}>
