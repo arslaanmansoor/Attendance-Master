@@ -58,6 +58,17 @@ export async function POST(request: Request) {
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
+    // Immediately mark subscription as trialing so user can access dashboard
+    await supabase
+      .from('profiles')
+      .update({
+        subscription_status: 'trialing',
+        plan_key: resolvedPlanKey,
+        stripe_customer_id: session.customer as string || profile.stripe_customer_id || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id);
+
     return NextResponse.json({ success: true, url: session.url });
   } catch (err: unknown) {
     console.error('Checkout error:', err);
