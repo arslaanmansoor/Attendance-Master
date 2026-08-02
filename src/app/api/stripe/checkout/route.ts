@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         plan_key: resolvedPlanKey,
         supabase_user_id: user.id,
       },
-      success_url: `${origin}/settings/billing?success=true`,
+      success_url: `${origin}/?success=true`,
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
