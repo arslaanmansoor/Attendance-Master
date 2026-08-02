@@ -10,12 +10,17 @@ import {
 async function orgHasActiveSubscription(
   supabase: ReturnType<typeof createClient>['supabase']
 ): Promise<boolean> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('subscription_status')
     .eq('role', 'admin')
     .in('subscription_status', ['active', 'trialing'])
     .limit(1);
+
+  if (error) {
+    console.error('Middleware subscription lookup failed:', error);
+    return false;
+  }
 
   return (data?.length ?? 0) > 0;
 }
@@ -27,42 +32,59 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { supabase, supabaseResponse } = createClient(request);
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const { supabase, supabaseResponse } = createClient(request);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (isPublicPath(pathname)) {
-    if (user && (pathname === '/login' || pathname === '/register')) {
-      return NextResponse.redirect(new URL('/', request.url));
+    if (userError) {
+      console.error('Middleware auth lookup failed:', userError);
     }
+
+    if (isPublicPath(pathname)) {
+      if (user && (pathname === '/login' || pathname === '/register')) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+      return supabaseResponse;
+    }
+
+    if (!user) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('next', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (isSubscriptionExempt(pathname) || pathname.startsWith('/api/stripe')) {
+      return supabaseResponse;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, subscription_status')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Middleware profile lookup failed:', profileError);
+      return supabaseResponse;
+    }
+
+    const isAdmin = profile?.role === 'admin';
+    const hasAccess = isAdmin
+      ? hasActiveSubscription(profile?.subscription_status)
+      : await orgHasActiveSubscription(supabase);
+
+    if (!hasAccess) {
+      return NextResponse.redirect(new URL('/pricing', request.url));
+    }
+
     return supabaseResponse;
+  } catch (error) {
+    console.error('Middleware invocation failed:', error);
+    return NextResponse.next();
   }
-
-  if (!user) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  if (isSubscriptionExempt(pathname) || pathname.startsWith('/api/stripe')) {
-    return supabaseResponse;
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, subscription_status')
-    .eq('id', user.id)
-    .single();
-
-  const isAdmin = profile?.role === 'admin';
-  const hasAccess = isAdmin
-    ? hasActiveSubscription(profile?.subscription_status)
-    : await orgHasActiveSubscription(supabase);
-
-  if (!hasAccess) {
-    return NextResponse.redirect(new URL('/pricing', request.url));
-  }
-
-  return supabaseResponse;
 }
 
 export const config = {
