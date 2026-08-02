@@ -34,7 +34,7 @@ export default function PricingPage() {
       key: 'PRO',
       name: 'Pro Plan',
       tagline: 'Ideal for growing teams needing essential attendance & shift management.',
-      price: 49,
+      price: 80,
       billingLabel: '/ month',
       badge: 'Popular for SMBs',
       features: [
@@ -49,7 +49,7 @@ export default function PricingPage() {
       key: 'PREMIUM',
       name: 'Premium Plan',
       tagline: 'Comprehensive suite for scaling workforce ops, automated payroll & audit logs.',
-      price: 149,
+      price: 400,
       billingLabel: 'every 6 months',
       badge: 'Most Popular',
       featured: true,
@@ -66,7 +66,7 @@ export default function PricingPage() {
       key: 'PLATINUM',
       name: 'Platinum Plan',
       tagline: 'Enterprise-grade capacity with dedicated account management & custom SLA.',
-      price: 399,
+      price: 700,
       billingLabel: '/ year',
       badge: 'Enterprise',
       features: [
@@ -101,12 +101,16 @@ export default function PricingPage() {
           </Link>
 
           <div style={{ textAlign: 'center', maxWidth: '680px', margin: '0 auto' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: 'var(--radius-full)', background: 'var(--primary-soft)', marginBottom: '16px' }}>
+              <Sparkles width={16} height={16} style={{ color: 'var(--primary)' }} />
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>3-Day Free Trial on Any Plan</span>
+            </div>
             <p className="eyebrow" style={{ letterSpacing: '0.2em' }}>Flexible SaaS Plans</p>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginTop: '8px', letterSpacing: '-0.03em' }}>
               Simple, transparent pricing for modern HR teams.
             </h1>
             <p className="muted" style={{ fontSize: '1.05rem', marginTop: '12px' }}>
-              Pro is billed monthly, Premium every 6 months, and Platinum annually. Cancel or upgrade anytime via Stripe Customer Portal.
+              Start with a 3-day free trial. No credit card required. Pro is billed monthly, Premium every 6 months, and Platinum annually. Cancel or upgrade anytime via Stripe Customer Portal.
             </p>
           </div>
         </div>
@@ -161,16 +165,17 @@ export default function PricingPage() {
                   <h3 style={{ fontSize: '1.4rem', fontWeight: 700 }}>{plan.name}</h3>
                   <span className="badge-chip info">{plan.badge}</span>
                 </div>
-                <p className="muted" style={{ fontSize: '0.88rem', marginTop: '8px', minHeight: '40px' }}>
+            <p className="muted" style={{ fontSize: '0.88rem', marginTop: '8px', minHeight: '40px' }}>
                   {plan.tagline}
                 </p>
               </div>
 
               <div style={{ margin: '24px 0', borderBottom: '1px solid var(--border)', paddingBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '8px' }}>
                   <span style={{ fontSize: '2.8rem', fontWeight: 800 }}>${plan.price}</span>
                   <span className="muted" style={{ fontSize: '0.9rem' }}>{plan.billingLabel}</span>
                 </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--success)', fontWeight: 600 }}>✓ 3-day free trial included</div>
               </div>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
@@ -184,12 +189,12 @@ export default function PricingPage() {
 
               <button
                 type="button"
-                className={plan.featured ? 'primary-btn' : 'ghost-btn'}
+                className={plan.featured ? 'primary-btn' : 'btn-secondary'}
                 style={{ width: '100%', marginTop: '32px', padding: '12px', justifyContent: 'center' }}
                 onClick={() => handleSubscribe(plan.key)}
                 disabled={loadingPlan === plan.key}
               >
-                {loadingPlan === plan.key ? 'Initializing Checkout...' : `Subscribe to ${plan.name}`}
+                {loadingPlan === plan.key ? 'Starting Free Trial...' : 'Start Free Trial'}
               </button>
             </div>
           ))}
@@ -207,7 +212,7 @@ export default function PricingPage() {
             <div>
               <strong style={{ fontSize: '0.95rem' }}>Is there a free trial?</strong>
               <p className="muted" style={{ marginTop: '4px' }}>
-                Every plan comes with a 14-day risk-free trial. You won&apos;t be billed until your trial ends.
+                Every plan comes with a 3-day free trial. Access all premium features risk-free. You won&apos;t be charged until your trial ends.
               </p>
             </div>
             <div>

@@ -14,23 +14,26 @@ export const PLANS = {
   PRO: {
     name: 'Pro Plan',
     priceId: process.env.STRIPE_PRO_PRICE_ID || 'price_pro_monthly',
-    amount: 49,
+    amount: 80,
     billingLabel: '/ month',
     description: 'Up to 50 employees, automated attendance tracking & exports',
+    trialDays: 3,
   },
   PREMIUM: {
     name: 'Premium Plan',
     priceId: process.env.STRIPE_PREMIUM_PRICE_ID || 'price_premium_6month',
-    amount: 149,
+    amount: 400,
     billingLabel: 'every 6 months',
     description: 'Up to 250 employees, payroll sync, advanced analytics & audit logs',
+    trialDays: 3,
   },
   PLATINUM: {
     name: 'Platinum Plan',
     priceId: process.env.STRIPE_PLATINUM_PRICE_ID || 'price_platinum_yearly',
-    amount: 399,
+    amount: 700,
     billingLabel: '/ year',
     description: 'Unlimited employees, dedicated support, custom integrations & SLA',
+    trialDays: 3,
   },
 } as const;
 

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         ? { customer: profile.stripe_customer_id }
         : { customer_email: user.email }),
       subscription_data: {
-        trial_period_days: 14,
+        trial_period_days: plan.trialDays || 3,
         metadata: {
           plan_key: resolvedPlanKey,
           supabase_user_id: user.id,
