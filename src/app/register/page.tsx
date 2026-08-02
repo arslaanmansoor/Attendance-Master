@@ -115,7 +115,7 @@ export default function RegisterPage() {
               <div className="auth-input">
                 <Mail size={16} />
                 <input
-                  type="email"
+                  type="text"
                   placeholder="alicia@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
