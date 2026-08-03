@@ -17,13 +17,27 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
+    let { data: profile, error: selectError } = await supabase
       .from('profiles')
       .select(
         'role, subscription_status, subscription_price_id, plan_key, stripe_customer_id, trial_ends_at, current_period_end'
       )
       .eq('id', user.id)
       .single();
+
+    if (selectError) {
+      console.warn('Full billing profile query failed (potentially missing columns):', selectError.message);
+      const { data: fallbackProfile, error: fallbackError } = await supabase
+        .from('profiles')
+        .select('role, subscription_status, subscription_price_id, stripe_customer_id')
+        .eq('id', user.id)
+        .single();
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+      profile = fallbackProfile as any;
+    }
 
     const planKey =
       (profile?.plan_key as ReturnType<typeof getPlanKeyFromPriceId>) ??

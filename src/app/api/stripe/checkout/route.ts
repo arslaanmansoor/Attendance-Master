@@ -62,15 +62,32 @@ export async function POST(request: Request) {
     // Immediately mark subscription as trialing so user can access dashboard
     // Use admin client to bypass RLS and ensure the update always succeeds
     const adminSupabase = createAdminClient();
-    await adminSupabase
+    const updateData = {
+      subscription_status: 'trialing',
+      stripe_customer_id: session.customer as string || profile.stripe_customer_id || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: fullUpdateError } = await adminSupabase
       .from('profiles')
       .update({
-        subscription_status: 'trialing',
+        ...updateData,
         plan_key: resolvedPlanKey,
-        stripe_customer_id: session.customer as string || profile.stripe_customer_id || null,
-        updated_at: new Date().toISOString(),
       })
       .eq('id', user.id);
+
+    if (fullUpdateError) {
+      console.warn('Full profile update failed (potentially missing columns):', fullUpdateError.message);
+      // Fallback: update only columns guaranteed to exist in standard schema
+      const { error: fallbackError } = await adminSupabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', user.id);
+
+      if (fallbackError) {
+        console.error('Fallback profile update failed:', fallbackError);
+      }
+    }
 
     return NextResponse.json({ success: true, url: session.url });
   } catch (err: unknown) {

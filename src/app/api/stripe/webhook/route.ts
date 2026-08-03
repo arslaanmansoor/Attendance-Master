@@ -8,18 +8,45 @@ type ProfileUpdate = Record<string, string | null>;
 
 async function updateProfileByCustomer(customerId: string, updates: ProfileUpdate) {
   const supabase = createAdminClient();
-  await supabase
+  const { error } = await supabase
     .from('profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('stripe_customer_id', customerId);
+
+  if (error) {
+    console.warn('Webhook update by customer failed, attempting fallback update:', error.message);
+    const fallbackUpdates = {
+      subscription_status: updates.subscription_status,
+      subscription_price_id: updates.subscription_price_id,
+      updated_at: new Date().toISOString(),
+    };
+    await supabase
+      .from('profiles')
+      .update(fallbackUpdates)
+      .eq('stripe_customer_id', customerId);
+  }
 }
 
 async function updateProfileByUserId(userId: string, updates: ProfileUpdate) {
   const supabase = createAdminClient();
-  await supabase
+  const { error } = await supabase
     .from('profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', userId);
+
+  if (error) {
+    console.warn('Webhook update by userId failed, attempting fallback update:', error.message);
+    const fallbackUpdates = {
+      subscription_status: updates.subscription_status,
+      subscription_price_id: updates.subscription_price_id,
+      stripe_customer_id: updates.stripe_customer_id,
+      updated_at: new Date().toISOString(),
+    };
+    await supabase
+      .from('profiles')
+      .update(fallbackUpdates)
+      .eq('id', userId);
+  }
 }
 
 function mapSubscriptionStatus(status: Stripe.Subscription.Status): string {
