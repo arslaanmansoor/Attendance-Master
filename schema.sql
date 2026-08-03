@@ -29,8 +29,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   position TEXT,
   phone TEXT,
   stripe_customer_id TEXT,
-  subscription_status TEXT DEFAULT 'inactive', -- 'active', 'past_due', 'canceled', 'inactive'
+  stripe_subscription_id TEXT,
+  subscription_status TEXT DEFAULT 'inactive', -- 'active', 'trialing', 'past_due', 'canceled', 'inactive'
   subscription_price_id TEXT,
+  plan_key TEXT, -- 'PRO', 'PREMIUM', 'PLATINUM'
+  trial_ends_at TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

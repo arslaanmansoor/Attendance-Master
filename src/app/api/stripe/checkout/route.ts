@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { stripe, getPlan, type PlanKey } from '@/lib/stripe';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { hasActiveSubscription } from '@/lib/subscription';
 
 export async function POST(request: Request) {
@@ -54,12 +55,14 @@ export async function POST(request: Request) {
         plan_key: resolvedPlanKey,
         supabase_user_id: user.id,
       },
-      success_url: `${origin}/?success=true`,
+      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
     // Immediately mark subscription as trialing so user can access dashboard
-    await supabase
+    // Use admin client to bypass RLS and ensure the update always succeeds
+    const adminSupabase = createAdminClient();
+    await adminSupabase
       .from('profiles')
       .update({
         subscription_status: 'trialing',

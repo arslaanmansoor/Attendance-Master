@@ -53,8 +53,8 @@ export function statusLabel(status?: string | null): string {
   }
 }
 
-export const PUBLIC_PATHS = ['/login', '/register', '/pricing'];
-export const SUBSCRIPTION_EXEMPT_PATHS = ['/pricing', '/settings/billing'];
+export const PUBLIC_PATHS = ['/login', '/register', '/pricing', '/success'];
+export const SUBSCRIPTION_EXEMPT_PATHS = ['/pricing', '/settings/billing', '/success'];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

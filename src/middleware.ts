@@ -56,7 +56,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    if (isSubscriptionExempt(pathname) || pathname.startsWith('/api/stripe')) {
+    if (isSubscriptionExempt(pathname) || pathname.startsWith('/api/stripe') || pathname.startsWith('/api/billing')) {
       return supabaseResponse;
     }
 
@@ -77,6 +77,15 @@ export async function middleware(request: NextRequest) {
       : await orgHasActiveSubscription(supabase);
 
     if (!hasAccess) {
+      // If user just came back from Stripe checkout with a success param,
+      // redirect to /success page instead of /pricing to avoid a loop
+      const successParam = request.nextUrl.searchParams.get('success');
+      const sessionParam = request.nextUrl.searchParams.get('session_id');
+      if (successParam === 'true' || sessionParam) {
+        const successUrl = new URL('/success', request.url);
+        if (sessionParam) successUrl.searchParams.set('session_id', sessionParam);
+        return NextResponse.redirect(successUrl);
+      }
       return NextResponse.redirect(new URL('/pricing', request.url));
     }
 
