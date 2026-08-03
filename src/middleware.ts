@@ -72,6 +72,9 @@ export async function middleware(request: NextRequest) {
     }
 
     const isAdmin = profile?.role?.toLowerCase() === 'admin';
+
+    console.log("isAdmin:", isAdmin);
+
     const hasAccess = isAdmin
       ? hasActiveSubscription(profile?.subscription_status)
       : await orgHasActiveSubscription(supabase);
