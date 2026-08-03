@@ -77,7 +77,7 @@ function subscriptionUpdates(subscription: Stripe.Subscription): ProfileUpdate {
     trial_ends_at: subscription.trial_end
       ? new Date(subscription.trial_end * 1000).toISOString()
       : null,
-  current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
   };
 }
 
@@ -99,9 +99,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  switch(event.type){
-
-}
+  switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const customerId = session.customer as string | null;
@@ -170,4 +168,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ received: true });
 }
-
