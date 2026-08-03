@@ -76,6 +76,13 @@ export async function middleware(request: NextRequest) {
       ? hasActiveSubscription(profile?.subscription_status)
       : await orgHasActiveSubscription(supabase);
 
+    console.log("===== MIDDLEWARE DEBUG =====");
+    console.log("User ID:", user.id);
+    console.log("Role:", profile?.role);
+    console.log("Subscription Status:", profile?.subscription_status);
+    console.log("Has Access:", hasAccess);
+    console.log("============================");
+
     if (!hasAccess) {
       // If user just came back from Stripe checkout with a success param,
       // redirect to /success page instead of /pricing to avoid a loop
