@@ -369,31 +369,28 @@ export default function DashboardPage() {
 
         <nav className="nav-group" aria-label="Sidebar navigation">
           {[
-            { name: 'Dashboard', icon: Layers, badge: 'Live' },
-            { name: 'Employees', icon: Users },
-            { name: 'Attendance', icon: CalendarCheck, badge: '12' },
-            { name: 'Payroll', icon: DollarSign },
-            { name: 'Projects', icon: Briefcase },
-            { name: 'Reports', icon: FileText },
+            { name: 'Dashboard', icon: Layers, badge: 'Live', href: '/' },
+            { name: 'Employees', icon: Users, href: '/employees' },
+            { name: 'Attendance', icon: CalendarCheck, badge: '12', href: '/' },
+            { name: 'Payroll', icon: DollarSign, href: '/payroll' },
+            { name: 'Projects', icon: Briefcase, href: '/' },
+            { name: 'Reports', icon: FileText, href: '/' },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.name;
             return (
-              <a
+              <Link
                 key={item.name}
                 className={`nav-item ${isActive ? 'active' : ''}`}
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActiveTab(item.name);
-                }}
+                href={item.href}
+                onClick={() => setActiveTab(item.name)}
               >
                 <span className="lead">
                   <Icon width={18} height={18} style={{ opacity: isActive ? 1 : 0.7 }} />
                   <span>{item.name}</span>
                 </span>
                 {item.badge && <span className="badge">{item.badge}</span>}
-              </a>
+              </Link>
             );
           })}
         </nav>
