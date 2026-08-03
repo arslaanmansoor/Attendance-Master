@@ -77,7 +77,10 @@ function subscriptionUpdates(subscription: Stripe.Subscription): ProfileUpdate {
     trial_ends_at: subscription.trial_end
       ? new Date(subscription.trial_end * 1000).toISOString()
       : null,
-    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+   current_period_end:
+  subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000).toISOString()
+    : null,
   };
 }
 
@@ -99,7 +102,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
-  switch (event.type) {
+  try {
+
+   switch(event.type){
+
+   }
+
+   return NextResponse.json({received:true});
+
+} catch(error){
+
+   console.error("Webhook Error:", error);
+
+   return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown Error" },
+      { status:500 }
+   );
+
+}
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const customerId = session.customer as string | null;
@@ -168,3 +188,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ received: true });
 }
+console.log("Updating customer:", subscription.customer);
