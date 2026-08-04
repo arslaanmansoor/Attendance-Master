@@ -55,7 +55,7 @@ export async function POST(request: Request) {
         plan_key: resolvedPlanKey,
         supabase_user_id: user.id,
       },
-      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 

@@ -193,7 +193,7 @@ export default function DashboardPage() {
               setBilling(data);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       } else {
         setBilling(null);
       }
@@ -683,12 +683,12 @@ export default function DashboardPage() {
                 const buttonLabel = isCurrent
                   ? 'Current plan'
                   : loadingPlan === plan.key
-                  ? 'Processing...'
-                  : !authUser
-                  ? 'Sign in to checkout'
-                  : billing?.role !== 'admin'
-                  ? 'Admin access required'
-                  : 'Proceed to checkout';
+                    ? 'Processing...'
+                    : !authUser
+                      ? 'Sign in to checkout'
+                      : billing?.role !== 'admin'
+                        ? 'Admin access required'
+                        : 'Proceed to checkout';
 
                 return (
                   <article key={plan.key} className={`pricing-card ${isCurrent ? 'pricing-card-current' : ''}`}>
