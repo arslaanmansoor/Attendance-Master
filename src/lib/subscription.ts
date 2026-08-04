@@ -1,5 +1,3 @@
-import { PLANS, type PlanKey } from './stripe';
-
 export type SubscriptionStatus =
   | 'active'
   | 'trialing'
@@ -9,7 +7,17 @@ export type SubscriptionStatus =
 
 export const ACTIVE_STATUSES: SubscriptionStatus[] = ['active', 'trialing'];
 
+export type PlanKey = 'FREE_TRIAL' | 'PRO' | 'PREMIUM' | 'PLATINUM';
+
+export const PLAN_NAMES: Record<PlanKey, string> = {
+  FREE_TRIAL: 'Free Trial',
+  PRO: 'Pro Plan',
+  PREMIUM: 'Premium Plan',
+  PLATINUM: 'Platinum Plan',
+};
+
 export const PLAN_LIMITS: Record<PlanKey, { maxEmployees: number; payroll: boolean }> = {
+  FREE_TRIAL: { maxEmployees: Infinity, payroll: true },
   PRO: { maxEmployees: 50, payroll: false },
   PREMIUM: { maxEmployees: 250, payroll: true },
   PLATINUM: { maxEmployees: Infinity, payroll: true },
@@ -21,9 +29,9 @@ export function hasActiveSubscription(status?: string | null): boolean {
 
 export function getPlanKeyFromPriceId(priceId?: string | null): PlanKey | null {
   if (!priceId) return null;
-  for (const [key, plan] of Object.entries(PLANS) as [PlanKey, (typeof PLANS)[PlanKey]][]) {
-    if (plan.priceId === priceId) return key;
-  }
+  if (priceId.includes('pro')) return 'PRO';
+  if (priceId.includes('premium')) return 'PREMIUM';
+  if (priceId.includes('platinum')) return 'PLATINUM';
   return null;
 }
 
@@ -33,7 +41,7 @@ export function getPlanLimits(planKey?: PlanKey | null) {
 }
 
 export function getPlanDisplayName(planKey?: PlanKey | null, priceId?: string | null): string {
-  if (planKey) return PLANS[planKey]?.name ?? 'Unknown plan';
+  if (planKey) return PLAN_NAMES[planKey] ?? 'Unknown plan';
   if (priceId) return 'Active Stripe subscription';
   return 'No plan';
 }

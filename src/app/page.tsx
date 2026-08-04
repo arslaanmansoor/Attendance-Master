@@ -371,10 +371,10 @@ export default function DashboardPage() {
           {[
             { name: 'Dashboard', icon: Layers, badge: 'Live', href: '/' },
             { name: 'Employees', icon: Users, href: '/employees' },
-            { name: 'Attendance', icon: CalendarCheck, badge: '12', href: '/' },
-            { name: 'Payroll', icon: DollarSign, href: '/payroll' },
-            { name: 'Projects', icon: Briefcase, href: '/' },
-            { name: 'Reports', icon: FileText, href: '/' },
+            { name: 'Timesheets', icon: CalendarCheck, badge: 'Redesigned', href: '/timesheets' },
+            { name: 'Payroll', icon: DollarSign, badge: 'UAE', href: '/payroll' },
+            { name: 'Reports', icon: FileText, href: '/reports' },
+            { name: 'UAE Company', icon: Briefcase, badge: 'Alerts', href: '/company' },
           ].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.name;
