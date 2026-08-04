@@ -210,6 +210,43 @@ export default function DashboardPage() {
     }
   }, [authLoading, authUser, router]);
 
+  // SVG Chart calculation
+  const chartPoints = useMemo(() => {
+    const points = chartDatasets[range].map((d) => d.value);
+    const width = 560;
+    const height = 260;
+    const padding = 28;
+    const max = Math.max(...points);
+    const min = Math.min(...points);
+    const stepX = (width - padding * 2) / (points.length - 1);
+
+    const coords = points.map((val, idx) => {
+      const x = padding + idx * stepX;
+      const normalized = (val - min) / (max - min || 1);
+      const y = height - padding - normalized * (height - padding * 2);
+      return { x, y, val };
+    });
+
+    const pathData = coords.reduce((acc, pt, idx) => {
+      return idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+    }, '');
+
+    const areaData = `${pathData} L ${width - padding} ${height - padding} L ${padding} ${height - padding} Z`;
+
+    return { coords, pathData, areaData, width, height, padding };
+  }, [range]);
+
+  const filteredLeaveRequests = useMemo(() => {
+    if (!searchQuery.trim()) return leaveRequests;
+    const q = searchQuery.toLowerCase();
+    return leaveRequests.filter(
+      (r) =>
+        r.employee.toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q) ||
+        r.status.toLowerCase().includes(q)
+    );
+  }, [leaveRequests, searchQuery]);
+
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
@@ -287,43 +324,6 @@ export default function DashboardPage() {
     );
     triggerToast(`Updated leave request status to ${newStatus}`);
   };
-
-  // SVG Chart calculation
-  const chartPoints = useMemo(() => {
-    const points = chartDatasets[range].map((d) => d.value);
-    const width = 560;
-    const height = 260;
-    const padding = 28;
-    const max = Math.max(...points);
-    const min = Math.min(...points);
-    const stepX = (width - padding * 2) / (points.length - 1);
-
-    const coords = points.map((val, idx) => {
-      const x = padding + idx * stepX;
-      const normalized = (val - min) / (max - min || 1);
-      const y = height - padding - normalized * (height - padding * 2);
-      return { x, y, val };
-    });
-
-    const pathData = coords.reduce((acc, pt, idx) => {
-      return idx === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
-    }, '');
-
-    const areaData = `${pathData} L ${width - padding} ${height - padding} L ${padding} ${height - padding} Z`;
-
-    return { coords, pathData, areaData, width, height, padding };
-  }, [range]);
-
-  const filteredLeaveRequests = useMemo(() => {
-    if (!searchQuery.trim()) return leaveRequests;
-    const q = searchQuery.toLowerCase();
-    return leaveRequests.filter(
-      (r) =>
-        r.employee.toLowerCase().includes(q) ||
-        r.type.toLowerCase().includes(q) ||
-        r.status.toLowerCase().includes(q)
-    );
-  }, [leaveRequests, searchQuery]);
 
   return (
     <div className="app-shell">
