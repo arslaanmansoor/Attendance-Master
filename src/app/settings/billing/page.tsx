@@ -116,7 +116,7 @@ export default function BillingSettingsPage() {
             }}
           >
             <CheckCircle2 width={20} height={20} style={{ color: 'var(--success)' }} />
-            <span>Subscription started successfully. Your 14-day trial is now active.</span>
+            <span>Subscription started successfully. Your 3-day trial is now active.</span>
           </div>
         )}
 
