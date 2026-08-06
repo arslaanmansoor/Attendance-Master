@@ -435,6 +435,72 @@ export default function PayrollPage() {
           </div>
         )}
 
+        {/* Generate Payroll Modal */}
+        {showGenerateModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div className="card" style={{ width: '100%', maxWidth: '480px', padding: '28px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Generate New Payroll</h3>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setShowGenerateModal(false)}>
+                  <X width={20} height={20} />
+                </button>
+              </div>
+              <form onSubmit={handleGeneratePayroll} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Payroll Title
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. August 2026 Payroll Run"
+                    value={generateForm.title}
+                    onChange={(e) => setGenerateForm({ ...generateForm, title: e.target.value })}
+                    required
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                  />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Period Start
+                    </label>
+                    <input
+                      type="date"
+                      value={generateForm.period_start}
+                      onChange={(e) => setGenerateForm({ ...generateForm, period_start: e.target.value })}
+                      required
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Period End
+                    </label>
+                    <input
+                      type="date"
+                      value={generateForm.period_end}
+                      onChange={(e) => setGenerateForm({ ...generateForm, period_end: e.target.value })}
+                      required
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.82rem' }} className="muted">
+                  This will generate payroll for all active employees based on their timesheet data for the selected period.
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                  <button type="button" className="ghost-btn" onClick={() => setShowGenerateModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="primary-btn">
+                    Generate Payroll
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Payslip Modal View & PDF Print Layout */}
         {selectedPayslip && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
@@ -570,3 +636,4 @@ export default function PayrollPage() {
       </div>
     </div>
   );
+}
