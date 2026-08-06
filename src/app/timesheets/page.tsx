@@ -336,17 +336,17 @@ export default function TimesheetsPage() {
 
   const exportCSV = () => {
     const csvData = records.map((r) => ({
-      'Employee ID': r.employeeId,
-      'Employee Name': r.employeeName,
-      Project: r.project,
+      'Employee ID': r.profiles.employee_id || 'N/A',
+      'Employee Name': r.profiles.full_name,
+      Project: r.projects?.name || 'N/A',
       Date: r.date,
       Day: r.day,
-      'Time In': r.timeIn,
-      'Time Out': r.timeOut,
-      'Break (hrs)': r.breakTime,
-      'Total Hours': r.totalHours,
-      'Regular Hours': r.regularHours,
-      'Overtime Hours': r.overtimeHours,
+      'Time In': r.time_in,
+      'Time Out': r.time_out,
+      'Break (hrs)': r.break_hours,
+      'Total Hours': r.total_hours,
+      'Regular Hours': r.regular_hours,
+      'Overtime Hours': r.overtime_hours,
       Status: r.status,
       Notes: r.notes,
     }));
@@ -361,8 +361,8 @@ export default function TimesheetsPage() {
 
   const filteredRecords = records;
 
-  const totalHrs = filteredRecords.reduce((acc, curr) => acc + curr.totalHours, 0);
-  const totalOT = filteredRecords.reduce((acc, curr) => acc + curr.overtimeHours, 0);
+  const totalHrs = filteredRecords.reduce((acc, curr) => acc + curr.total_hours, 0);
+  const totalOT = filteredRecords.reduce((acc, curr) => acc + curr.overtime_hours, 0);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 24px' }}>
