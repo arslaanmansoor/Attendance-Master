@@ -140,10 +140,15 @@ export default function EmployeesPage() {
   const fetchCompanies = async () => {
     try {
       const supabase = (await import('@/lib/supabase/client')).createClient();
-      const { data } = await supabase.from('companies').select('*');
-      if (data) setCompanies(data);
+      const { data, error } = await supabase.from('companies').select('*');
+      if (error) {
+        console.error('Failed to fetch companies:', error);
+        showNotification('error', 'Failed to load companies');
+      } else if (data) {
+        setCompanies(data);
+      }
     } catch (error) {
-      console.error('Failed to fetch companies');
+      console.error('Failed to fetch companies:', error);
     }
   };
 
@@ -698,12 +703,21 @@ export default function EmployeesPage() {
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                     >
                       <option value="">Select Company</option>
-                      {companies.map((comp) => (
-                        <option key={comp.id} value={comp.id}>
-                          {comp.name}
-                        </option>
-                      ))}
+                      {companies.length === 0 ? (
+                        <option value="" disabled>No companies found</option>
+                      ) : (
+                        companies.map((comp) => (
+                          <option key={comp.id} value={comp.id}>
+                            {comp.name}
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {companies.length === 0 && (
+                      <p className="muted" style={{ fontSize: '0.8rem', marginTop: '4px' }}>
+                        No company found. <Link href="/company" style={{ color: 'var(--primary)' }}>+ Add Company</Link>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1155,12 +1169,21 @@ export default function EmployeesPage() {
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                     >
                       <option value="">Select Company</option>
-                      {companies.map((comp) => (
-                        <option key={comp.id} value={comp.id}>
-                          {comp.name}
-                        </option>
-                      ))}
+                      {companies.length === 0 ? (
+                        <option value="" disabled>No companies found</option>
+                      ) : (
+                        companies.map((comp) => (
+                          <option key={comp.id} value={comp.id}>
+                            {comp.name}
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {companies.length === 0 && (
+                      <p className="muted" style={{ fontSize: '0.8rem', marginTop: '4px' }}>
+                        No company found. <Link href="/company" style={{ color: 'var(--primary)' }}>+ Add Company</Link>
+                      </p>
+                    )}
                   </div>
                 </div>
 
