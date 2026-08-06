@@ -35,6 +35,14 @@ interface Employee {
   joining_date: string | null;
   basic_salary: number;
   hourly_rate: number;
+  nationality: string | null;
+  passport_id: string | null;
+  visa_expiry: string | null;
+  employment_type: string | null;
+  overtime_rate: number;
+  working_hours_per_day: number;
+  weekly_off_day: string | null;
+  notes: string | null;
   created_at: string;
 }
 
@@ -74,9 +82,17 @@ export default function EmployeesPage() {
     company_id: '',
     position: '',
     phone: '',
+    nationality: '',
+    passport_id: '',
+    visa_expiry: '',
+    employment_type: 'Full-time',
     joining_date: new Date().toISOString().split('T')[0],
     basic_salary: '',
     hourly_rate: '',
+    overtime_rate: '',
+    working_hours_per_day: '8',
+    weekly_off_day: 'Sunday',
+    notes: '',
     employment_status: 'Active' as 'Active' | 'Inactive' | 'On Leave' | 'Terminated',
   });
 
@@ -183,6 +199,8 @@ export default function EmployeesPage() {
           ...formData,
           basic_salary: parseFloat(formData.basic_salary) || 0,
           hourly_rate: parseFloat(formData.hourly_rate) || 0,
+          overtime_rate: parseFloat(formData.overtime_rate) || 0,
+          working_hours_per_day: parseFloat(formData.working_hours_per_day) || 8,
         }),
       });
 
@@ -267,9 +285,17 @@ export default function EmployeesPage() {
       company_id: employee.companies?.id || '',
       position: employee.position || '',
       phone: employee.phone || '',
+      nationality: employee.nationality || '',
+      passport_id: employee.passport_id || '',
+      visa_expiry: employee.visa_expiry || '',
+      employment_type: employee.employment_type || 'Full-time',
       joining_date: employee.joining_date || new Date().toISOString().split('T')[0],
       basic_salary: employee.basic_salary.toString(),
       hourly_rate: employee.hourly_rate.toString(),
+      overtime_rate: employee.overtime_rate.toString(),
+      working_hours_per_day: employee.working_hours_per_day.toString(),
+      weekly_off_day: employee.weekly_off_day || 'Sunday',
+      notes: employee.notes || '',
       employment_status: employee.employment_status,
     });
     setShowEditModal(true);
@@ -285,9 +311,17 @@ export default function EmployeesPage() {
       company_id: '',
       position: '',
       phone: '',
+      nationality: '',
+      passport_id: '',
+      visa_expiry: '',
+      employment_type: 'Full-time',
       joining_date: new Date().toISOString().split('T')[0],
       basic_salary: '',
       hourly_rate: '',
+      overtime_rate: '',
+      working_hours_per_day: '8',
+      weekly_off_day: 'Sunday',
+      notes: '',
       employment_status: 'Active',
     });
   };
@@ -668,6 +702,62 @@ export default function EmployeesPage() {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Nationality
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. UAE"
+                      value={formData.nationality}
+                      onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Passport / ID Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. A12345678"
+                      value={formData.passport_id}
+                      onChange={(e) => setFormData({ ...formData, passport_id: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Visa Expiry
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.visa_expiry}
+                      onChange={(e) => setFormData({ ...formData, visa_expiry: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Employment Type
+                    </label>
+                    <select
+                      value={formData.employment_type}
+                      onChange={(e) => setFormData({ ...formData, employment_type: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                    >
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Intern">Intern</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
                       Joining Date
                     </label>
                     <input
@@ -702,6 +792,65 @@ export default function EmployeesPage() {
                       placeholder="0.00"
                       value={formData.hourly_rate}
                       onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Overtime Rate
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.overtime_rate}
+                      onChange={(e) => setFormData({ ...formData, overtime_rate: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Working Hours Per Day
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      placeholder="8"
+                      value={formData.working_hours_per_day}
+                      onChange={(e) => setFormData({ ...formData, working_hours_per_day: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Weekly Off Day
+                    </label>
+                    <select
+                      value={formData.weekly_off_day}
+                      onChange={(e) => setFormData({ ...formData, weekly_off_day: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                    >
+                      <option value="Sunday">Sunday</option>
+                      <option value="Saturday">Saturday</option>
+                      <option value="Friday">Friday</option>
+                      <option value="Monday">Monday</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Notes
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Additional notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
                     />
                   </div>
@@ -978,6 +1127,65 @@ export default function EmployeesPage() {
                       placeholder="0.00"
                       value={formData.hourly_rate}
                       onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Overtime Rate
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.overtime_rate}
+                      onChange={(e) => setFormData({ ...formData, overtime_rate: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Working Hours Per Day
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      placeholder="8"
+                      value={formData.working_hours_per_day}
+                      onChange={(e) => setFormData({ ...formData, working_hours_per_day: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Weekly Off Day
+                    </label>
+                    <select
+                      value={formData.weekly_off_day}
+                      onChange={(e) => setFormData({ ...formData, weekly_off_day: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                    >
+                      <option value="Sunday">Sunday</option>
+                      <option value="Saturday">Saturday</option>
+                      <option value="Friday">Friday</option>
+                      <option value="Monday">Monday</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Notes
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Additional notes"
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
                     />
                   </div>

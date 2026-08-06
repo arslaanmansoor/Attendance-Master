@@ -31,9 +31,17 @@ export async function GET(request: Request) {
         companies(id, name),
         position,
         phone,
+        nationality,
+        passport_id,
+        visa_expiry,
+        employment_type,
         joining_date,
         basic_salary,
         hourly_rate,
+        overtime_rate,
+        working_hours_per_day,
+        weekly_off_day,
+        notes,
         employment_status,
         created_at
       `)
@@ -93,9 +101,17 @@ export async function POST(request: Request) {
       company_id,
       position,
       phone,
+      nationality,
+      passport_id,
+      visa_expiry,
+      employment_type,
       joining_date,
       basic_salary,
       hourly_rate,
+      overtime_rate,
+      working_hours_per_day,
+      weekly_off_day,
+      notes,
       employment_status
     } = body;
 
@@ -192,10 +208,19 @@ export async function POST(request: Request) {
         company_id: finalCompanyId,
         position,
         phone,
+        nationality,
+        passport_id,
+        visa_expiry,
+        employment_type: employment_type || 'Full-time',
         joining_date: joining_date || new Date().toISOString().split('T')[0],
         basic_salary: basic_salary || 0,
         hourly_rate: hourly_rate || 0,
+        overtime_rate: overtime_rate || 0,
+        working_hours_per_day: working_hours_per_day || 8,
+        weekly_off_day: weekly_off_day || 'Sunday',
+        notes,
         employment_status: employment_status || 'Active',
+        created_by: user.id,
       })
       .select()
       .single();
@@ -235,7 +260,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, employee_id, full_name, email, role, department_id, company_id, position, phone, joining_date, basic_salary, hourly_rate, employment_status } = body;
+    const { id, employee_id, full_name, email, role, department_id, company_id, position, phone, nationality, passport_id, visa_expiry, employment_type, joining_date, basic_salary, hourly_rate, overtime_rate, working_hours_per_day, weekly_off_day, notes, employment_status } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
@@ -266,11 +291,20 @@ export async function PUT(request: Request) {
         company_id,
         position,
         phone,
+        nationality,
+        passport_id,
+        visa_expiry,
+        employment_type,
         joining_date,
         basic_salary,
         hourly_rate,
+        overtime_rate,
+        working_hours_per_day,
+        weekly_off_day,
+        notes,
         employment_status,
         updated_at: new Date().toISOString(),
+        updated_by: user.id,
       })
       .eq('id', id)
       .select()
