@@ -59,8 +59,10 @@ export default function EmployeesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // New employee form state
   const [formData, setFormData] = useState({
@@ -147,6 +149,8 @@ export default function EmployeesPage() {
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
     if (!formData.employee_id) {
       showNotification('error', 'Employee ID is required');
       return;
@@ -155,6 +159,25 @@ export default function EmployeesPage() {
       showNotification('error', 'Name and email are required');
       return;
     }
+    if (!formData.company_id) {
+      showNotification('error', 'Company is required');
+      return;
+    }
+
+    // Check if Employee ID already exists
+    const existingEmployee = employees.find(emp => emp.employee_id === formData.employee_id);
+    if (existingEmployee) {
+      showNotification('error', 'Employee ID already exists');
+      return;
+    }
+
+    // Show confirmation modal
+    setShowConfirmModal(true);
+  };
+
+  const confirmAddEmployee = async () => {
+    setShowConfirmModal(false);
+    setIsSaving(true);
 
     try {
       const response = await fetch('/api/employees', {
@@ -175,10 +198,12 @@ export default function EmployeesPage() {
         resetForm();
         fetchEmployees();
       } else {
-        showNotification('error', data.error || 'Failed to add employee');
+        showNotification('error', data.error || 'Unable to save employee');
       }
     } catch (error) {
-      showNotification('error', 'Failed to add employee');
+      showNotification('error', 'Please check database connection');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -690,11 +715,67 @@ export default function EmployeesPage() {
                   <button type="button" className="ghost-btn" onClick={() => { setShowAddModal(false); resetForm(); }}>
                     Cancel
                   </button>
-                  <button type="submit" className="primary-btn">
-                    Save Employee
+                  <button type="submit" className="primary-btn" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="spin" width={16} height={16} style={{ marginRight: '8px' }} />
+                        Saving...
+                      </>
+                    ) : (
+                      'Confirm & Save Employee'
+                    )}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="card"
+              style={{ width: '90%', maxWidth: '400px', padding: '28px', background: 'var(--surface)' }}
+            >
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '12px' }}>Confirm Employee Addition</h3>
+              <p className="muted" style={{ fontSize: '0.95rem', marginBottom: '24px' }}>
+                Are you sure you want to add this employee?
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  className="ghost-btn"
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary-btn"
+                  onClick={confirmAddEmployee}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="spin" width={16} height={16} style={{ marginRight: '8px' }} />
+                      Confirming...
+                    </>
+                  ) : (
+                    'Confirm'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
