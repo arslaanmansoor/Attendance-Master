@@ -430,7 +430,7 @@ export default function PayrollPage() {
             </table>
           </div>
         ) : (
-          <div className="card" style={{ padding: '40px', textAlign: 'center' }} className="muted">
+          <div className="card muted" style={{ padding: '40px', textAlign: 'center' }}>
             Select a payroll run to view details
           </div>
         )}
