@@ -159,10 +159,6 @@ export default function EmployeesPage() {
       showNotification('error', 'Name and email are required');
       return;
     }
-    if (!formData.company_id) {
-      showNotification('error', 'Company is required');
-      return;
-    }
 
     // Check if Employee ID already exists
     const existingEmployee = employees.find(emp => emp.employee_id === formData.employee_id);
