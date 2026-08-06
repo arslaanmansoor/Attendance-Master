@@ -21,7 +21,7 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -33,9 +33,24 @@ export default function RegisterPage() {
 
       if (error) {
         setErrorMsg(error.message);
-      } else {
-        router.push('/');
-        router.refresh();
+      } else if (data.user) {
+        // Create profile record
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email,
+            full_name: fullName,
+            role: 'admin',
+            employment_status: 'Active',
+          });
+
+        if (profileError) {
+          setErrorMsg('Account created but profile setup failed. Please contact support.');
+        } else {
+          router.push('/');
+          router.refresh();
+        }
       }
     } catch {
       setErrorMsg('An error occurred during account registration.');

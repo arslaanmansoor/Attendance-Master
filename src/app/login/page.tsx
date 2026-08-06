@@ -20,14 +20,33 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
         setErrorMsg(error.message);
-      } else {
+      } else if (data.user) {
+        // Check if profile exists, create if not
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              email: data.user.email || email,
+              full_name: data.user.user_metadata?.full_name || email.split('@')[0],
+              role: 'admin',
+              employment_status: 'Active',
+            });
+        }
+
         router.push('/');
         router.refresh();
       }
