@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -15,117 +15,206 @@ import {
   FileText,
   X,
   Sparkles,
+  Plus,
+  Loader2,
 } from 'lucide-react';
 import Papa from 'papaparse';
 
-interface EmployeePayroll {
+interface PayrollRun {
   id: string;
-  empCode: string;
-  name: string;
-  department: string;
-  designation: string;
-  monthlySalary: number;
-  basicSalary: number;
-  hourlyRate: number;
-  normalHours: number;
-  overtimeHours: number;
-  overtimeRate: number;
-  overtimePay: number;
-  allowances: number;
-  deductions: number;
-  advances: number;
-  leaveDeductions: number;
-  netSalary: number;
-  status: 'Paid' | 'Approved' | 'Draft';
+  title: string;
+  period_start: string;
+  period_end: string;
+  total_amount: number;
+  total_employees: number;
+  status: string;
+  approved_by: string | null;
+  profiles: { full_name: string } | null;
+  approved_at: string | null;
+  created_at: string;
 }
 
-const mockPayrolls: EmployeePayroll[] = [
-  {
-    id: 'PR-101',
-    empCode: 'EMP-001',
-    name: 'Zayed Al-Mansoori',
-    department: 'Engineering',
-    designation: 'Senior Project Engineer',
-    monthlySalary: 12000,
-    basicSalary: 7200,
-    hourlyRate: 34.62,
-    normalHours: 208,
-    overtimeHours: 14,
-    overtimeRate: 1.25,
-    overtimePay: 605.85,
-    allowances: 4800,
-    deductions: 200,
-    advances: 500,
-    leaveDeductions: 0,
-    netSalary: 16705.85,
-    status: 'Paid',
-  },
-  {
-    id: 'PR-102',
-    empCode: 'EMP-002',
-    name: 'Rashid Khan',
-    department: 'Operations',
-    designation: 'Steel Master Fitter',
-    monthlySalary: 6500,
-    basicSalary: 3900,
-    hourlyRate: 18.75,
-    normalHours: 208,
-    overtimeHours: 22,
-    overtimeRate: 1.25,
-    overtimePay: 515.63,
-    allowances: 2600,
-    deductions: 100,
-    advances: 0,
-    leaveDeductions: 0,
-    netSalary: 9515.63,
-    status: 'Approved',
-  },
-  {
-    id: 'PR-103',
-    empCode: 'EMP-003',
-    name: 'Tariq Mahmoud',
-    department: 'Safety & Site',
-    designation: 'HSE Coordinator',
-    monthlySalary: 8500,
-    basicSalary: 5100,
-    hourlyRate: 24.52,
-    normalHours: 208,
-    overtimeHours: 0,
-    overtimeRate: 1.25,
-    overtimePay: 0,
-    allowances: 3400,
-    deductions: 150,
-    advances: 1000,
-    leaveDeductions: 283.33,
-    netSalary: 10466.67,
-    status: 'Draft',
-  },
-];
+interface PayrollItem {
+  id: string;
+  payroll_run_id: string;
+  employee_id: string;
+  profiles: { employee_id: string | null; full_name: string; position: string | null; departments: { name: string } | null };
+  base_salary: number;
+  hourly_rate: number;
+  normal_hours: number;
+  overtime_hours: number;
+  overtime_rate: number;
+  overtime_pay: number;
+  allowances: number;
+  bonuses: number;
+  deductions: number;
+  advances: number;
+  leave_deductions: number;
+  net_salary: number;
+  status: string;
+  created_at: string;
+}
 
 export default function PayrollPage() {
-  const [payrolls, setPayrolls] = useState<EmployeePayroll[]>(mockPayrolls);
-  const [cycle, setCycle] = useState('August 2026 Payroll Run');
-  const [selectedPayslip, setSelectedPayslip] = useState<EmployeePayroll | null>(null);
+  const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
+  const [payrollItems, setPayrollItems] = useState<PayrollItem[]>([]);
+  const [selectedRun, setSelectedRun] = useState<PayrollRun | null>(null);
+  const [selectedPayslip, setSelectedPayslip] = useState<PayrollItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const totalNet = payrolls.reduce((acc, curr) => acc + curr.netSalary, 0);
-  const totalOvertime = payrolls.reduce((acc, curr) => acc + curr.overtimePay, 0);
+  // Generate payroll form state
+  const [generateForm, setGenerateForm] = useState({
+    title: '',
+    period_start: new Date().toISOString().split('T')[0],
+    period_end: new Date().toISOString().split('T')[0],
+  });
+
+  useEffect(() => {
+    fetchPayrollRuns();
+  }, []);
+
+  const fetchPayrollRuns = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/payroll');
+      const data = await response.json();
+
+      if (response.ok) {
+        setPayrollRuns(data.payrollRuns || []);
+      } else {
+        showNotification('error', data.error || 'Failed to fetch payroll runs');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to fetch payroll runs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPayrollItems = async (runId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/payroll?payrollRunId=${runId}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setPayrollItems(data.payrollItems || []);
+      } else {
+        showNotification('error', data.error || 'Failed to fetch payroll items');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to fetch payroll items');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const totalNet = payrollItems.reduce((acc: number, curr: PayrollItem) => acc + curr.net_salary, 0);
+  const totalOvertime = payrollItems.reduce((acc: number, curr: PayrollItem) => acc + curr.overtime_pay, 0);
+
+  const handleGeneratePayroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!generateForm.title || !generateForm.period_start || !generateForm.period_end) {
+      showNotification('error', 'All fields are required');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/payroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(generateForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotification('success', 'Payroll generated successfully');
+        setShowGenerateModal(false);
+        setGenerateForm({
+          title: '',
+          period_start: new Date().toISOString().split('T')[0],
+          period_end: new Date().toISOString().split('T')[0],
+        });
+        fetchPayrollRuns();
+      } else {
+        showNotification('error', data.error || 'Failed to generate payroll');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to generate payroll');
+    }
+  };
+
+  const handleUpdateStatus = async (runId: string, status: string) => {
+    try {
+      const response = await fetch('/api/payroll', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'payroll_run', id: runId, status }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotification('success', 'Payroll status updated');
+        fetchPayrollRuns();
+      } else {
+        showNotification('error', data.error || 'Failed to update status');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to update status');
+    }
+  };
+
+  const handleDeleteRun = async (runId: string) => {
+    if (!confirm('Are you sure you want to delete this payroll run?')) return;
+
+    try {
+      const response = await fetch(`/api/payroll?type=payroll_run&id=${runId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotification('success', 'Payroll run deleted');
+        if (selectedRun?.id === runId) {
+          setSelectedRun(null);
+          setPayrollItems([]);
+        }
+        fetchPayrollRuns();
+      } else {
+        showNotification('error', data.error || 'Failed to delete payroll run');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to delete payroll run');
+    }
+  };
 
   const exportCSV = () => {
-    const csvData = payrolls.map((p) => ({
-      'Employee Code': p.empCode,
-      Name: p.name,
-      Department: p.department,
-      Designation: p.designation,
-      'Basic Salary (AED/USD)': p.basicSalary,
-      'Hourly Rate': p.hourlyRate,
-      'Normal Hours': p.normalHours,
-      'Overtime Hours': p.overtimeHours,
-      'Overtime Pay': p.overtimePay,
+    const csvData = payrollItems.map((p: PayrollItem) => ({
+      'Employee ID': p.profiles.employee_id || 'N/A',
+      Name: p.profiles.full_name,
+      Position: p.profiles.position || 'N/A',
+      Department: p.profiles.departments?.name || 'N/A',
+      'Basic Salary': p.base_salary,
+      'Hourly Rate': p.hourly_rate,
+      'Normal Hours': p.normal_hours,
+      'Overtime Hours': p.overtime_hours,
+      'Overtime Pay': p.overtime_pay,
       Allowances: p.allowances,
+      Bonuses: p.bonuses,
       Deductions: p.deductions,
       Advances: p.advances,
-      'Leave Deductions': p.leaveDeductions,
-      'Net Salary': p.netSalary,
+      'Leave Deductions': p.leave_deductions,
+      'Net Salary': p.net_salary,
       Status: p.status,
     }));
     const csv = Papa.unparse(csvData);
@@ -168,7 +257,7 @@ export default function PayrollPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="primary-btn" onClick={exportCSV}>
+            <button className="primary-btn" onClick={exportCSV} disabled={!selectedRun}>
               <FileSpreadsheet width={16} height={16} /> Export Payroll CSV
             </button>
           </div>
@@ -182,7 +271,7 @@ export default function PayrollPage() {
               <DollarSign width={20} height={20} style={{ color: 'var(--primary)' }} />
             </div>
             <div className="kpi-value">${totalNet.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-            <div className="kpi-trend">Computed from active timesheets</div>
+            <div className="kpi-trend">{selectedRun ? `For ${selectedRun.title}` : 'Select a payroll run'}</div>
           </div>
           <div className="card kpi-card">
             <div className="kpi-top">
@@ -197,53 +286,134 @@ export default function PayrollPage() {
               <div className="kpi-title">Active Payslips Ready</div>
               <FileText width={20} height={20} style={{ color: 'var(--success)' }} />
             </div>
-            <div className="kpi-value">{payrolls.length}</div>
+            <div className="kpi-value">{payrollItems.length}</div>
             <div className="kpi-trend">Download & Printable PDF</div>
           </div>
         </div>
 
+        {/* Payroll Runs Selection */}
+        <div className="card" style={{ padding: '20px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Payroll Runs</h3>
+            <button className="primary-btn" onClick={() => setShowGenerateModal(true)}>
+              <Plus width={16} height={16} /> Generate New Payroll
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            {payrollRuns.map((run) => (
+              <div
+                key={run.id}
+                className={`card ${selectedRun?.id === run.id ? 'selected' : ''}`}
+                style={{
+                  padding: '16px',
+                  cursor: 'pointer',
+                  border: selectedRun?.id === run.id ? '2px solid var(--primary)' : '1px solid var(--border)',
+                }}
+                onClick={() => {
+                  setSelectedRun(run);
+                  fetchPayrollItems(run.id);
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ fontSize: '0.95rem' }}>{run.title}</strong>
+                  <span className={`badge-chip ${run.status === 'Approved' || run.status === 'Disbursed' ? 'success' : run.status === 'Draft' ? 'warning' : 'info'}`}>
+                    {run.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.82rem' }} className="muted">
+                  {run.period_start} to {run.period_end}
+                </div>
+                <div style={{ fontSize: '0.82rem' }} className="muted">
+                  {run.total_employees} employees • ${run.total_amount.toLocaleString()}
+                </div>
+                {selectedRun?.id === run.id && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                    {run.status === 'Draft' && (
+                      <button
+                        className="btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(run.id, 'Approved'); }}
+                      >
+                        Approve
+                      </button>
+                    )}
+                    {run.status === 'Approved' && (
+                      <button
+                        className="btn-secondary"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(run.id, 'Disbursed'); }}
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+                    <button
+                      className="icon-btn danger"
+                      style={{ padding: '4px', fontSize: '0.75rem' }}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteRun(run.id); }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Payroll Summary Table */}
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Employee Code</th>
-                <th>Name & Designation</th>
-                <th>Basic Salary</th>
-                <th>Hourly Rate</th>
-                <th>Normal / OT Hrs</th>
-                <th>OT Pay</th>
-                <th>Allowances</th>
-                <th>Deductions</th>
-                <th>Net Salary</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Payslip</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrolls.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <strong>{p.empCode}</strong>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+            <Loader2 className="spin" width={32} height={32} style={{ color: 'var(--primary)' }} />
+          </div>
+        ) : selectedRun ? (
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Employee ID</th>
+                  <th>Name & Designation</th>
+                  <th>Basic Salary</th>
+                  <th>Hourly Rate</th>
+                  <th>Normal / OT Hrs</th>
+                  <th>OT Pay</th>
+                  <th>Allowances</th>
+                  <th>Deductions</th>
+                  <th>Net Salary</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Payslip</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payrollItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '32px' }} className="muted">
+                      No payroll items found for this run.
+                    </td>
+                  </tr>
+                ) : (
+                  payrollItems.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                    <strong>{p.profiles.employee_id || 'N/A'}</strong>
                   </td>
                   <td>
                     <div>
-                      <strong>{p.name}</strong>
+                      <strong>{p.profiles.full_name}</strong>
                       <div className="muted" style={{ fontSize: '0.78rem' }}>
-                        {p.designation} ({p.department})
+                        {p.profiles.position || 'N/A'} ({p.profiles.departments?.name || 'N/A'})
                       </div>
                     </div>
                   </td>
-                  <td style={{ fontSize: '0.88rem' }}>${p.basicSalary.toLocaleString()}</td>
-                  <td style={{ fontSize: '0.88rem' }}>${p.hourlyRate}/hr</td>
+                  <td style={{ fontSize: '0.88rem' }}>${p.base_salary.toLocaleString()}</td>
+                  <td style={{ fontSize: '0.88rem' }}>${p.hourly_rate}/hr</td>
                   <td style={{ fontSize: '0.88rem' }}>
-                    {p.normalHours}h / <span style={{ color: 'var(--warning)', fontWeight: 600 }}>+{p.overtimeHours}h</span>
+                    {p.normal_hours}h / <span style={{ color: 'var(--warning)', fontWeight: 600 }}>+{p.overtime_hours}h</span>
                   </td>
-                  <td style={{ fontSize: '0.88rem', color: 'var(--warning)', fontWeight: 600 }}>+${p.overtimePay.toFixed(2)}</td>
+                  <td style={{ fontSize: '0.88rem', color: 'var(--warning)', fontWeight: 600 }}>+${p.overtime_pay.toFixed(2)}</td>
                   <td style={{ fontSize: '0.88rem', color: 'var(--success)' }}>+${p.allowances.toLocaleString()}</td>
-                  <td style={{ fontSize: '0.88rem', color: 'var(--danger)' }}>-${(p.deductions + p.advances + p.leaveDeductions).toFixed(2)}</td>
+                  <td style={{ fontSize: '0.88rem', color: 'var(--danger)' }}>-${(p.deductions + p.advances + p.leave_deductions).toFixed(2)}</td>
                   <td>
-                    <strong style={{ fontSize: '1rem', color: 'var(--primary)' }}>${p.netSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+                    <strong style={{ fontSize: '1rem', color: 'var(--primary)' }}>${p.net_salary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
                   </td>
                   <td>
                     <span className={`badge-chip ${p.status === 'Paid' ? 'success' : p.status === 'Approved' ? 'info' : 'warning'}`}>{p.status}</span>
@@ -254,10 +424,16 @@ export default function PayrollPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: '40px', textAlign: 'center' }} className="muted">
+            Select a payroll run to view details
+          </div>
+        )}
 
         {/* Payslip Modal View & PDF Print Layout */}
         {selectedPayslip && (
@@ -284,7 +460,7 @@ export default function PayrollPage() {
                     <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Dubai Silicon Oasis, UAE | Trade License: TL-987654</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#2563eb' }}>PAYSLIP - AUGUST 2026</h3>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#2563eb' }}>PAYSLIP - {selectedRun?.title || 'N/A'}</h3>
                     <span style={{ fontSize: '0.82rem', color: '#64748b' }}>Ref: {selectedPayslip.id}</span>
                   </div>
                 </div>
@@ -292,22 +468,22 @@ export default function PayrollPage() {
                 {/* Employee Details Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.88rem' }}>
                   <div>
-                    <strong>Employee Name:</strong> {selectedPayslip.name}
+                    <strong>Employee Name:</strong> {selectedPayslip.profiles.full_name}
                   </div>
                   <div>
-                    <strong>Employee Code:</strong> {selectedPayslip.empCode}
+                    <strong>Employee Code:</strong> {selectedPayslip.profiles.employee_id || 'N/A'}
                   </div>
                   <div>
-                    <strong>Department:</strong> {selectedPayslip.department}
+                    <strong>Department:</strong> {selectedPayslip.profiles.departments?.name || 'N/A'}
                   </div>
                   <div>
-                    <strong>Designation:</strong> {selectedPayslip.designation}
+                    <strong>Designation:</strong> {selectedPayslip.profiles.position || 'N/A'}
                   </div>
                   <div>
-                    <strong>Normal Hours Worked:</strong> {selectedPayslip.normalHours} hrs
+                    <strong>Normal Hours Worked:</strong> {selectedPayslip.normal_hours} hrs
                   </div>
                   <div>
-                    <strong>Hourly Rate:</strong> ${selectedPayslip.hourlyRate}/hr
+                    <strong>Hourly Rate:</strong> ${selectedPayslip.hourly_rate}/hr
                   </div>
                 </div>
 
@@ -319,15 +495,21 @@ export default function PayrollPage() {
                       <tbody>
                         <tr>
                           <td style={{ padding: '4px 0' }}>Basic Salary</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.basicSalary.toFixed(2)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.base_salary.toFixed(2)}</td>
                         </tr>
                         <tr>
                           <td style={{ padding: '4px 0' }}>Allowances (Housing & Transport)</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.allowances.toFixed(2)}</td>
                         </tr>
+                        {selectedPayslip.bonuses > 0 && (
+                          <tr>
+                            <td style={{ padding: '4px 0' }}>Bonuses</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.bonuses.toFixed(2)}</td>
+                          </tr>
+                        )}
                         <tr>
-                          <td style={{ padding: '4px 0' }}>Overtime Pay ({selectedPayslip.overtimeHours} hrs @ 1.25x)</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.overtimePay.toFixed(2)}</td>
+                          <td style={{ padding: '4px 0' }}>Overtime Pay ({selectedPayslip.overtime_hours} hrs @ 1.25x)</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.overtime_pay.toFixed(2)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -343,7 +525,7 @@ export default function PayrollPage() {
                         </tr>
                         <tr>
                           <td style={{ padding: '4px 0' }}>Leave / Absence Deductions</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.leaveDeductions.toFixed(2)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>${selectedPayslip.leave_deductions.toFixed(2)}</td>
                         </tr>
                         <tr>
                           <td style={{ padding: '4px 0' }}>Other Deductions</td>
@@ -360,13 +542,31 @@ export default function PayrollPage() {
                     <span style={{ fontSize: '0.85rem', color: '#1e40af', fontWeight: 600 }}>NET PAYABLE AMOUNT</span>
                     <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Direct Bank Transfer / WPS Compliant</div>
                   </div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e3a8a' }}>${selectedPayslip.netSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1e3a8a' }}>${selectedPayslip.net_salary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        {/* Notification */}
+        {notification && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              padding: '16px 24px',
+              borderRadius: '8px',
+              background: notification.type === 'success' ? 'var(--success)' : 'var(--danger)',
+              color: '#fff',
+              zIndex: 1000,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            }}
+          >
+            {notification.message}
+          </div>
+        )}
       </div>
     </div>
   );
-}

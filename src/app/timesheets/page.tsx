@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -19,133 +19,137 @@ import {
   Check,
   X,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import Papa from 'papaparse';
 
 interface TimesheetRecord {
   id: string;
-  employeeName: string;
-  employeeId: string;
-  project: string;
+  employee_id: string;
+  profiles: { employee_id: string | null; full_name: string };
+  project_id: string | null;
+  projects: { name: string } | null;
   date: string;
-  day: string;
-  timeIn: string;
-  timeOut: string;
-  breakTime: number; // hours
-  totalHours: number;
-  regularHours: number;
-  overtimeHours: number;
-  status: 'Present' | 'Absent' | 'Leave' | 'Sick Leave' | 'Holiday';
-  notes: string;
+  day: string | null;
+  time_in: string | null;
+  time_out: string | null;
+  break_hours: number;
+  total_hours: number;
+  regular_hours: number;
+  overtime_hours: number;
+  status: string;
+  notes: string | null;
+  created_at: string;
 }
 
-const mockProjects = [
-  'Burj Vista Tower Maintenance',
-  'Dubai Logistics Warehouse B',
-  'Downtown Commercial Plaza',
-  'Sharjah Residential Complex',
-  'Abu Dhabi Marine Terminal',
-];
+interface Employee {
+  id: string;
+  employee_id: string | null;
+  full_name: string;
+}
 
-const mockEmployees = [
-  { id: 'EMP-001', name: 'Zayed Al-Mansoori' },
-  { id: 'EMP-002', name: 'Rashid Khan' },
-  { id: 'EMP-003', name: 'Tariq Mahmoud' },
-  { id: 'EMP-004', name: 'Vikram Singh' },
-  { id: 'EMP-005', name: 'Carlos Santos' },
-];
-
-const mockTimesheets: TimesheetRecord[] = [
-  {
-    id: 'TS-101',
-    employeeName: 'Zayed Al-Mansoori',
-    employeeId: 'EMP-001',
-    project: 'Burj Vista Tower Maintenance',
-    date: '2026-08-03',
-    day: 'Monday',
-    timeIn: '08:00',
-    timeOut: '18:00',
-    breakTime: 1.0,
-    totalHours: 9.0,
-    regularHours: 8.0,
-    overtimeHours: 1.0,
-    status: 'Present',
-    notes: 'Site inspection & HVAC testing',
-  },
-  {
-    id: 'TS-102',
-    employeeName: 'Rashid Khan',
-    employeeId: 'EMP-002',
-    project: 'Dubai Logistics Warehouse B',
-    date: '2026-08-03',
-    day: 'Monday',
-    timeIn: '08:00',
-    timeOut: '17:00',
-    breakTime: 1.0,
-    totalHours: 8.0,
-    regularHours: 8.0,
-    overtimeHours: 0.0,
-    status: 'Present',
-    notes: 'Steel framework installation',
-  },
-  {
-    id: 'TS-103',
-    employeeName: 'Tariq Mahmoud',
-    employeeId: 'EMP-003',
-    project: 'Downtown Commercial Plaza',
-    date: '2026-08-02',
-    day: 'Sunday',
-    timeIn: '00:00',
-    timeOut: '00:00',
-    breakTime: 0,
-    totalHours: 0,
-    regularHours: 0,
-    overtimeHours: 0,
-    status: 'Holiday',
-    notes: 'Weekly Holiday',
-  },
-  {
-    id: 'TS-104',
-    employeeName: 'Vikram Singh',
-    employeeId: 'EMP-004',
-    project: 'Sharjah Residential Complex',
-    date: '2026-08-03',
-    day: 'Monday',
-    timeIn: '08:30',
-    timeOut: '19:30',
-    breakTime: 1.0,
-    totalHours: 10.0,
-    regularHours: 8.0,
-    overtimeHours: 2.0,
-    status: 'Present',
-    notes: 'Concrete pouring overtime',
-  },
-];
+interface Project {
+  id: string;
+  name: string;
+  code: string | null;
+}
 
 export default function TimesheetsPage() {
-  const [records, setRecords] = useState<TimesheetRecord[]>(mockTimesheets);
+  const [records, setRecords] = useState<TimesheetRecord[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [dateFilter, setDateFilter] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isBulk, setIsBulk] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<TimesheetRecord | null>(null);
+
+  useEffect(() => {
+    fetchTimesheets();
+    fetchEmployees();
+    fetchProjects();
+  }, [selectedProject, selectedStatus, dateFilter]);
+
+  const fetchTimesheets = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (selectedProject !== 'All') params.append('project', selectedProject);
+      if (selectedStatus !== 'All') params.append('status', selectedStatus);
+      if (dateFilter) params.append('date', dateFilter);
+
+      const response = await fetch(`/api/timesheets?${params.toString()}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setRecords(data.timesheets || []);
+      } else {
+        showNotification('error', data.error || 'Failed to fetch timesheets');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to fetch timesheets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/employees');
+      const data = await response.json();
+      if (response.ok) {
+        setEmployees(data.employees || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch employees');
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const supabase = (await import('@/lib/supabase/client')).createClient();
+      const { data } = await supabase.from('projects').select('*');
+      if (data) setProjects(data);
+    } catch (error) {
+      console.error('Failed to fetch projects');
+    }
+  };
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ type, message });
+    setTimeout(() => setNotification(null), 3000);
+  };
 
   // Form State
-  const [formEmpId, setFormEmpId] = useState('EMP-001');
-  const [formProject, setFormProject] = useState(mockProjects[0]);
+  const [formEmpId, setFormEmpId] = useState('');
+  const [formProjectId, setFormProjectId] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
   const [formTimeIn, setFormTimeIn] = useState('08:00');
   const [formTimeOut, setFormTimeOut] = useState('17:00');
   const [formBreak, setFormBreak] = useState(1.0);
-  const [formStatus, setFormStatus] = useState<'Present' | 'Absent' | 'Leave' | 'Sick Leave' | 'Holiday'>('Present');
+  const [formStatus, setFormStatus] = useState('Present');
   const [formNotes, setFormNotes] = useState('');
 
   // Bulk State
   const [bulkDate, setBulkDate] = useState(new Date().toISOString().split('T')[0]);
-  const [bulkProject, setBulkProject] = useState(mockProjects[0]);
-  const [bulkStatus, setBulkStatus] = useState<'Present' | 'Absent' | 'Leave' | 'Sick Leave' | 'Holiday'>('Present');
+  const [bulkProjectId, setBulkProjectId] = useState('');
+  const [bulkStatus, setBulkStatus] = useState('Present');
   const [bulkTimeIn, setBulkTimeIn] = useState('08:00');
   const [bulkTimeOut, setBulkTimeOut] = useState('17:00');
+
+  useEffect(() => {
+    if (employees.length > 0) {
+      setFormEmpId(employees[0].id);
+    }
+    if (projects.length > 0) {
+      setFormProjectId(projects[0].id);
+      setBulkProjectId(projects[0].id);
+    }
+  }, [employees, projects]);
 
   // Compute calculated hours helper
   const calculateHours = (timeInStr: string, timeOutStr: string, breakHrs: number, statusStr: string) => {
@@ -170,67 +174,164 @@ export default function TimesheetsPage() {
     return days[d.getDay()];
   };
 
-  const handleSaveSingle = (e: React.FormEvent) => {
+  const handleSaveSingle = async (e: React.FormEvent) => {
     e.preventDefault();
-    const emp = mockEmployees.find((e) => e.id === formEmpId) || mockEmployees[0];
-    const day = getDayName(formDate);
-    const isSunday = day === 'Sunday';
-    const effectiveStatus = isSunday && formStatus === 'Present' ? 'Holiday' : formStatus;
+    if (!formEmpId || !formDate) {
+      showNotification('error', 'Employee and date are required');
+      return;
+    }
 
-    const { total, regular, overtime } = calculateHours(formTimeIn, formTimeOut, formBreak, effectiveStatus);
+    try {
+      const response = await fetch('/api/timesheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: formEmpId,
+          project_id: formProjectId || null,
+          date: formDate,
+          time_in: formTimeIn,
+          time_out: formTimeOut,
+          break_hours: formBreak,
+          status: formStatus,
+          notes: formNotes,
+        }),
+      });
 
-    const newRecord: TimesheetRecord = {
-      id: `TS-${Date.now().toString().slice(-4)}`,
-      employeeName: emp.name,
-      employeeId: emp.id,
-      project: formProject,
-      date: formDate,
-      day,
-      timeIn: effectiveStatus === 'Present' ? formTimeIn : '00:00',
-      timeOut: effectiveStatus === 'Present' ? formTimeOut : '00:00',
-      breakTime: effectiveStatus === 'Present' ? formBreak : 0,
-      totalHours: total,
-      regularHours: regular,
-      overtimeHours: overtime,
-      status: effectiveStatus,
-      notes: formNotes || (isSunday ? 'Weekly Holiday' : ''),
-    };
+      const data = await response.json();
 
-    setRecords([newRecord, ...records]);
-    setIsAdding(false);
+      if (response.ok) {
+        showNotification('success', 'Attendance recorded successfully');
+        setIsAdding(false);
+        setIsEditing(false);
+        setEditingRecord(null);
+        resetForm();
+        fetchTimesheets();
+      } else {
+        showNotification('error', data.error || 'Failed to record attendance');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to record attendance');
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord) return;
+
+    try {
+      const response = await fetch('/api/timesheets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingRecord.id,
+          project_id: formProjectId || null,
+          time_in: formTimeIn,
+          time_out: formTimeOut,
+          break_hours: formBreak,
+          status: formStatus,
+          notes: formNotes,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotification('success', 'Timesheet updated successfully');
+        setIsEditing(false);
+        setEditingRecord(null);
+        resetForm();
+        fetchTimesheets();
+      } else {
+        showNotification('error', data.error || 'Failed to update timesheet');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to update timesheet');
+    }
+  };
+
+  const handleSaveBulk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkDate || employees.length === 0) {
+      showNotification('error', 'Date and employees are required');
+      return;
+    }
+
+    try {
+      const promises = employees.map((emp) =>
+        fetch('/api/timesheets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employee_id: emp.id,
+            project_id: bulkProjectId || null,
+            date: bulkDate,
+            time_in: bulkTimeIn,
+            time_out: bulkTimeOut,
+            break_hours: 1.0,
+            status: bulkStatus,
+            notes: 'Bulk daily entry',
+          }),
+        })
+      );
+
+      const results = await Promise.allSettled(promises);
+      const successful = results.filter((r) => r.status === 'fulfilled').length;
+
+      if (successful > 0) {
+        showNotification('success', `Successfully recorded ${successful} attendance entries`);
+        setIsBulk(false);
+        fetchTimesheets();
+      } else {
+        showNotification('error', 'Failed to record bulk attendance');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to record bulk attendance');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this timesheet record?')) return;
+
+    try {
+      const response = await fetch(`/api/timesheets?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotification('success', 'Timesheet deleted successfully');
+        fetchTimesheets();
+      } else {
+        showNotification('error', data.error || 'Failed to delete timesheet');
+      }
+    } catch (error) {
+      showNotification('error', 'Failed to delete timesheet');
+    }
+  };
+
+  const openEditModal = (record: TimesheetRecord) => {
+    setEditingRecord(record);
+    setFormEmpId(record.employee_id);
+    setFormProjectId(record.project_id || '');
+    setFormDate(record.date);
+    setFormTimeIn(record.time_in || '08:00');
+    setFormTimeOut(record.time_out || '17:00');
+    setFormBreak(record.break_hours);
+    setFormStatus(record.status);
+    setFormNotes(record.notes || '');
+    setIsEditing(true);
+  };
+
+  const resetForm = () => {
+    setFormEmpId(employees[0]?.id || '');
+    setFormProjectId(projects[0]?.id || '');
+    setFormDate(new Date().toISOString().split('T')[0]);
+    setFormTimeIn('08:00');
+    setFormTimeOut('17:00');
+    setFormBreak(1.0);
+    setFormStatus('Present');
     setFormNotes('');
-  };
-
-  const handleSaveBulk = (e: React.FormEvent) => {
-    e.preventDefault();
-    const day = getDayName(bulkDate);
-    const isSunday = day === 'Sunday';
-    const effectiveStatus = isSunday ? 'Holiday' : bulkStatus;
-    const { total, regular, overtime } = calculateHours(bulkTimeIn, bulkTimeOut, 1.0, effectiveStatus);
-
-    const newEntries: TimesheetRecord[] = mockEmployees.map((emp) => ({
-      id: `TS-${Date.now()}-${emp.id}`,
-      employeeName: emp.name,
-      employeeId: emp.id,
-      project: bulkProject,
-      date: bulkDate,
-      day,
-      timeIn: effectiveStatus === 'Present' ? bulkTimeIn : '00:00',
-      timeOut: effectiveStatus === 'Present' ? bulkTimeOut : '00:00',
-      breakTime: effectiveStatus === 'Present' ? 1.0 : 0,
-      totalHours: total,
-      regularHours: regular,
-      overtimeHours: overtime,
-      status: effectiveStatus,
-      notes: 'Bulk daily entry',
-    }));
-
-    setRecords([...newEntries, ...records]);
-    setIsBulk(false);
-  };
-
-  const handleDelete = (id: string) => {
-    setRecords(records.filter((r) => r.id !== id));
   };
 
   const exportCSV = () => {
@@ -258,12 +359,7 @@ export default function TimesheetsPage() {
     link.click();
   };
 
-  const filteredRecords = records.filter((r) => {
-    if (selectedProject !== 'All' && r.project !== selectedProject) return false;
-    if (selectedStatus !== 'All' && r.status !== selectedStatus) return false;
-    if (dateFilter && r.date !== dateFilter) return false;
-    return true;
-  });
+  const filteredRecords = records;
 
   const totalHrs = filteredRecords.reduce((acc, curr) => acc + curr.totalHours, 0);
   const totalOT = filteredRecords.reduce((acc, curr) => acc + curr.overtimeHours, 0);
@@ -352,9 +448,9 @@ export default function TimesheetsPage() {
           <div>
             <select className="form-input" style={{ width: 'auto' }} value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
               <option value="All">All Projects</option>
-              {mockProjects.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+              {projects.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name}
                 </option>
               ))}
             </select>
@@ -380,105 +476,119 @@ export default function TimesheetsPage() {
         </div>
 
         {/* Timesheets Table */}
-        <div className="card" style={{ overflowX: 'auto' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Project</th>
-                <th>Date & Day</th>
-                <th>Time In / Out</th>
-                <th>Break</th>
-                <th>Total Hrs</th>
-                <th>Regular</th>
-                <th>Overtime</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRecords.length === 0 ? (
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+            <Loader2 className="spin" width={32} height={32} style={{ color: 'var(--primary)' }} />
+          </div>
+        ) : (
+          <div className="card" style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: '32px' }} className="muted">
-                    No attendance records match your filter criteria.
-                  </td>
+                  <th>Employee</th>
+                  <th>Project</th>
+                  <th>Date & Day</th>
+                  <th>Time In / Out</th>
+                  <th>Break</th>
+                  <th>Total Hrs</th>
+                  <th>Regular</th>
+                  <th>Overtime</th>
+                  <th>Status</th>
+                  <th>Notes</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ) : (
-                filteredRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>
-                      <div>
-                        <strong>{record.employeeName}</strong>
-                        <div className="muted" style={{ fontSize: '0.78rem' }}>
-                          {record.employeeId}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ fontSize: '0.88rem' }}>{record.project}</td>
-                    <td>
-                      <div style={{ fontSize: '0.88rem' }}>{record.date}</div>
-                      <div className="muted" style={{ fontSize: '0.78rem' }}>
-                        {record.day}
-                      </div>
-                    </td>
-                    <td>
-                      {record.status === 'Present' ? (
-                        <div style={{ fontSize: '0.88rem' }}>
-                          {record.timeIn} - {record.timeOut}
-                        </div>
-                      ) : (
-                        <span className="muted">-</span>
-                      )}
-                    </td>
-                    <td style={{ fontSize: '0.88rem' }}>{record.breakTime}h</td>
-                    <td>
-                      <strong>{record.totalHours.toFixed(1)}h</strong>
-                    </td>
-                    <td style={{ color: 'var(--text)', fontSize: '0.88rem' }}>{record.regularHours.toFixed(1)}h</td>
-                    <td>
-                      {record.overtimeHours > 0 ? (
-                        <span className="badge-chip warning" style={{ fontWeight: 700 }}>
-                          +{record.overtimeHours.toFixed(1)}h OT
-                        </span>
-                      ) : (
-                        <span className="muted">0.0h</span>
-                      )}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge-chip ${
-                          record.status === 'Present'
-                            ? 'success'
-                            : record.status === 'Holiday'
-                            ? 'info'
-                            : record.status === 'Sick Leave' || record.status === 'Leave'
-                            ? 'warning'
-                            : 'danger'
-                        }`}
-                      >
-                        {record.status}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.85rem' }} className="muted">
-                      {record.notes}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button
-                        className="icon-btn danger"
-                        onClick={() => handleDelete(record.id)}
-                        title="Delete Attendance Record"
-                        style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}
-                      >
-                        <Trash2 width={16} height={16} />
-                      </button>
+              </thead>
+              <tbody>
+                {filteredRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '32px' }} className="muted">
+                      No attendance records match your filter criteria.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filteredRecords.map((record) => (
+                    <tr key={record.id}>
+                      <td>
+                        <div>
+                          <strong>{record.profiles.full_name}</strong>
+                          <div className="muted" style={{ fontSize: '0.78rem' }}>
+                            {record.profiles.employee_id || 'N/A'}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '0.88rem' }}>{record.projects?.name || 'N/A'}</td>
+                      <td>
+                        <div style={{ fontSize: '0.88rem' }}>{record.date}</div>
+                        <div className="muted" style={{ fontSize: '0.78rem' }}>
+                          {record.day || 'N/A'}
+                        </div>
+                      </td>
+                      <td>
+                        {record.status === 'Present' ? (
+                          <div style={{ fontSize: '0.88rem' }}>
+                            {record.time_in} - {record.time_out}
+                          </div>
+                        ) : (
+                          <span className="muted">-</span>
+                        )}
+                      </td>
+                      <td style={{ fontSize: '0.88rem' }}>{record.break_hours}h</td>
+                      <td>
+                        <strong>{record.total_hours.toFixed(1)}h</strong>
+                      </td>
+                      <td style={{ color: 'var(--text)', fontSize: '0.88rem' }}>{record.regular_hours.toFixed(1)}h</td>
+                      <td>
+                        {record.overtime_hours > 0 ? (
+                          <span className="badge-chip warning" style={{ fontWeight: 700 }}>
+                            +{record.overtime_hours.toFixed(1)}h OT
+                          </span>
+                        ) : (
+                          <span className="muted">0.0h</span>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={`badge-chip ${
+                            record.status === 'Present'
+                              ? 'success'
+                              : record.status === 'Holiday'
+                              ? 'info'
+                              : record.status === 'Sick Leave' || record.status === 'Leave'
+                              ? 'warning'
+                              : 'danger'
+                          }`}
+                        >
+                          {record.status}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }} className="muted">
+                        {record.notes || '-'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="icon-btn"
+                          onClick={() => openEditModal(record)}
+                          title="Edit Attendance Record"
+                          style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', marginRight: '4px' }}
+                        >
+                          <Edit width={16} height={16} />
+                        </button>
+                        <button
+                          className="icon-btn danger"
+                          onClick={() => handleDelete(record.id)}
+                          title="Delete Attendance Record"
+                          style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}
+                        >
+                          <Trash2 width={16} height={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Record Attendance Modal */}
         {isAdding && (
@@ -490,26 +600,43 @@ export default function TimesheetsPage() {
                   <X width={20} height={20} />
                 </button>
               </div>
-              <form onSubmit={handleSaveSingle} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <form onSubmit={isEditing ? handleUpdate : handleSaveSingle} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label className="form-label">Select Employee</label>
-                  <select className="form-input" value={formEmpId} onChange={(e) => setFormEmpId(e.target.value)}>
-                    {mockEmployees.map((e) => (
+                  <select className="form-input" value={formEmpId} onChange={(e) => setFormEmpId(e.target.value)} disabled={isEditing}>
+                    {employees.map((e) => (
                       <option key={e.id} value={e.id}>
-                        {e.name} ({e.id})
+                        {e.full_name} ({e.employee_id || 'N/A'})
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label className="form-label">Project</label>
-                  <select className="form-input" value={formProject} onChange={(e) => setFormProject(e.target.value)}>
-                    {mockProjects.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                  <select className="form-input" value={formProjectId} onChange={(e) => setFormProjectId(e.target.value)}>
+                    <option value="">No Project</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="form-label">Date</label>
+                    <input type="date" className="form-input" value={formDate} onChange={(e) => setFormDate(e.target.value)} required disabled={isEditing} />
+                  </div>
+                  <div>
+                    <label className="form-label">Attendance Status</label>
+                    <select className="form-input" value={formStatus} onChange={(e) => setFormStatus(e.target.value as any)}>
+                      <option value="Present">Present</option>
+                      <option value="Absent">Absent</option>
+                      <option value="Leave">Leave</option>
+                      <option value="Sick Leave">Sick Leave</option>
+                      <option value="Holiday">Holiday</option>
+                    </select>
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
@@ -559,11 +686,11 @@ export default function TimesheetsPage() {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-                  <button type="button" className="btn-secondary" onClick={() => setIsAdding(false)}>
+                  <button type="button" className="btn-secondary" onClick={() => { setIsAdding(false); setIsEditing(false); setEditingRecord(null); resetForm(); }}>
                     Cancel
                   </button>
                   <button type="submit" className="primary-btn">
-                    Save Record
+                    {isEditing ? 'Update Record' : 'Save Record'}
                   </button>
                 </div>
               </form>
@@ -584,10 +711,11 @@ export default function TimesheetsPage() {
               <form onSubmit={handleSaveBulk} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
                   <label className="form-label">Project Location</label>
-                  <select className="form-input" value={bulkProject} onChange={(e) => setBulkProject(e.target.value)}>
-                    {mockProjects.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
+                  <select className="form-input" value={bulkProjectId} onChange={(e) => setBulkProjectId(e.target.value)}>
+                    <option value="">No Project</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
                       </option>
                     ))}
                   </select>
@@ -621,7 +749,7 @@ export default function TimesheetsPage() {
                 )}
 
                 <div style={{ fontSize: '0.85rem' }} className="muted">
-                  This will generate attendance records for all {mockEmployees.length} active employees on the selected date.
+                  This will generate attendance records for all {employees.length} active employees on the selected date.
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
@@ -634,6 +762,25 @@ export default function TimesheetsPage() {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {/* Notification */}
+        {notification && (
+          <div
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              padding: '16px 24px',
+              borderRadius: '8px',
+              background: notification.type === 'success' ? 'var(--success)' : 'var(--danger)',
+              color: '#fff',
+              zIndex: 1000,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            }}
+          >
+            {notification.message}
           </div>
         )}
       </div>
