@@ -26,9 +26,9 @@ export async function GET(request: Request) {
         avatar_url,
         role,
         department_id,
-        departments(name, code),
+        departments(id, name, code),
         company_id,
-        companies(name),
+        companies(id, name),
         position,
         phone,
         joining_date,
@@ -168,6 +168,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
     }
 
+    // Get the current user's company_id if not provided
+    let finalCompanyId = company_id;
+    if (!finalCompanyId) {
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+      finalCompanyId = currentUserProfile?.company_id;
+    }
+
     // Create profile
     const { data: newProfile, error: profileError } = await supabase
       .from('profiles')
@@ -178,7 +189,7 @@ export async function POST(request: Request) {
         full_name,
         role: role || 'employee',
         department_id,
-        company_id,
+        company_id: finalCompanyId,
         position,
         phone,
         joining_date: joining_date || new Date().toISOString().split('T')[0],

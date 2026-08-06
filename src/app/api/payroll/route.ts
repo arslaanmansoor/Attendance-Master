@@ -23,7 +23,7 @@ export async function GET(request: Request) {
           id,
           payroll_run_id,
           employee_id,
-          profiles!inner(employee_id, full_name, email, position, departments(name)),
+          profiles(id, employee_id, full_name, email, position, departments(name)),
           base_salary,
           hourly_rate,
           normal_hours,
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
           total_employees,
           status,
           approved_by,
-          profiles!inner(full_name),
+          profiles(id, full_name),
           approved_at,
           created_at
         `)
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile || !['admin', 'manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -261,7 +261,7 @@ export async function PUT(request: Request) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile || !['admin', 'manager'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -312,7 +312,7 @@ export async function PUT(request: Request) {
         .from('payroll_items')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (!existing) {
         return NextResponse.json({ error: 'Payroll item not found' }, { status: 404 });
@@ -372,7 +372,7 @@ export async function DELETE(request: Request) {
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!profile || profile.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

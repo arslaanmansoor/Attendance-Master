@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       .select(`
         id,
         employee_id,
-        profiles!inner(employee_id, full_name, email),
+        profiles(id, employee_id, full_name, email),
         project_id,
         projects(name, code),
         date,
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     }
 
     if (employeeId) {
-      query = query.eq('employee_id', employeeId);
+      query = query.eq('profiles.employee_id', employeeId);
     }
 
     const { data: timesheets, error } = await query.order('date', { ascending: false });
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
       .select('id')
       .eq('employee_id', employee_id)
       .eq('date', date)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return NextResponse.json({ error: 'Attendance record already exists for this date' }, { status: 400 });
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
       .select(`
         id,
         employee_id,
-        profiles!inner(employee_id, full_name),
+        profiles(id, employee_id, full_name),
         project_id,
         projects(name),
         date,
@@ -238,7 +238,7 @@ export async function PUT(request: Request) {
       .from('attendance_logs')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (!existing) {
       return NextResponse.json({ error: 'Timesheet not found' }, { status: 404 });

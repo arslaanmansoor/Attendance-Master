@@ -61,7 +61,7 @@ export async function GET() {
       .from('attendance_logs')
       .select(`
         date,
-        profiles(full_name, employee_id),
+        profiles(id, full_name, employee_id),
         status,
         time_in,
         time_out

@@ -29,8 +29,8 @@ interface Employee {
   role: 'admin' | 'manager' | 'employee';
   position: string | null;
   phone: string | null;
-  departments: { name: string; code: string } | null;
-  companies: { name: string } | null;
+  departments: { id: string; name: string; code: string } | null;
+  companies: { id: string; name: string } | null;
   employment_status: 'Active' | 'Inactive' | 'On Leave' | 'Terminated';
   joining_date: string | null;
   basic_salary: number;
@@ -147,6 +147,10 @@ export default function EmployeesPage() {
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.employee_id) {
+      showNotification('error', 'Employee ID is required');
+      return;
+    }
     if (!formData.full_name || !formData.email) {
       showNotification('error', 'Name and email are required');
       return;
@@ -238,8 +242,8 @@ export default function EmployeesPage() {
       full_name: employee.full_name,
       email: employee.email,
       role: employee.role,
-      department_id: '',
-      company_id: '',
+      department_id: employee.departments?.id || '',
+      company_id: employee.companies?.id || '',
       position: employee.position || '',
       phone: employee.phone || '',
       joining_date: employee.joining_date || new Date().toISOString().split('T')[0],
@@ -506,13 +510,14 @@ export default function EmployeesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                      Employee ID
+                      Employee ID *
                     </label>
                     <input
                       type="text"
-                      placeholder="Auto-generated if empty"
+                      placeholder="e.g. EMP-001"
                       value={formData.employee_id}
                       onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                      required
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
                     />
                   </div>
@@ -725,13 +730,14 @@ export default function EmployeesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                      Employee ID
+                      Employee ID *
                     </label>
                     <input
                       type="text"
-                      placeholder="Auto-generated if empty"
+                      placeholder="e.g. EMP-001"
                       value={formData.employee_id}
                       onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                      required
                       style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
                     />
                   </div>
