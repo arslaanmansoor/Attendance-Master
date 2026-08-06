@@ -68,6 +68,8 @@ export default function EmployeesPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -171,8 +173,24 @@ export default function EmployeesPage() {
       showNotification('error', 'Employee ID is required');
       return;
     }
-    if (!formData.full_name || !formData.email) {
-      showNotification('error', 'Name and email are required');
+    if (!formData.full_name) {
+      showNotification('error', 'Employee Name is required');
+      return;
+    }
+    if (!formData.email) {
+      showNotification('error', 'Email is required');
+      return;
+    }
+    if (!formData.company_id) {
+      showNotification('error', 'Company is required');
+      return;
+    }
+    if (!formData.department_id) {
+      showNotification('error', 'Department is required');
+      return;
+    }
+    if (!formData.position) {
+      showNotification('error', 'Position is required');
       return;
     }
 
@@ -254,23 +272,38 @@ export default function EmployeesPage() {
   };
 
   const handleDeleteEmployee = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this employee?')) return;
+    const employee = employees.find(emp => emp.id === id);
+    if (employee) {
+      setEmployeeToDelete(employee);
+      setShowDeleteModal(true);
+    }
+  };
+
+  const confirmDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+    
+    setShowDeleteModal(false);
+    setIsSaving(true);
 
     try {
-      const response = await fetch(`/api/employees?id=${id}`, {
+      const response = await fetch('/api/employees', {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: employeeToDelete.id }),
       });
-
-      const data = await response.json();
 
       if (response.ok) {
         showNotification('success', 'Employee deleted successfully');
         fetchEmployees();
       } else {
-        showNotification('error', data.error || 'Failed to delete employee');
+        const data = await response.json();
+        showNotification('error', data.error || 'Unable to delete employee');
       }
     } catch (error) {
-      showNotification('error', 'Failed to delete employee');
+      showNotification('error', 'Please check database connection');
+    } finally {
+      setIsSaving(false);
+      setEmployeeToDelete(null);
     }
   };
 
@@ -892,12 +925,21 @@ export default function EmployeesPage() {
           >
             <div
               className="card"
-              style={{ width: '90%', maxWidth: '400px', padding: '28px', background: 'var(--surface)' }}
+              style={{ width: '90%', maxWidth: '450px', padding: '28px', background: 'var(--surface)' }}
             >
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '12px' }}>Confirm Employee Addition</h3>
-              <p className="muted" style={{ fontSize: '0.95rem', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '12px' }}>Add New Employee</h3>
+              <p className="muted" style={{ fontSize: '0.95rem', marginBottom: '20px' }}>
                 Are you sure you want to add this employee?
               </p>
+              
+              <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: 'var(--radius-sm)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                <div style={{ marginBottom: '8px' }}><strong>Employee ID:</strong> {formData.employee_id}</div>
+                <div style={{ marginBottom: '8px' }}><strong>Employee Name:</strong> {formData.full_name}</div>
+                <div style={{ marginBottom: '8px' }}><strong>Company:</strong> {companies.find(c => c.id === formData.company_id)?.name || 'Not selected'}</div>
+                <div style={{ marginBottom: '8px' }}><strong>Department:</strong> {departments.find(d => d.id === formData.department_id)?.name || 'Not selected'}</div>
+                <div><strong>Position:</strong> {formData.position || 'Not specified'}</div>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button
                   className="ghost-btn"
@@ -918,6 +960,63 @@ export default function EmployeesPage() {
                     </>
                   ) : (
                     'Confirm'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && employeeToDelete && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="card"
+              style={{ width: '90%', maxWidth: '400px', padding: '28px', background: 'var(--surface)' }}
+            >
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '12px', color: 'var(--danger)' }}>Delete Employee</h3>
+              <p className="muted" style={{ fontSize: '0.95rem', marginBottom: '20px' }}>
+                Are you sure you want to delete this employee? This action cannot be undone.
+              </p>
+              
+              <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: 'var(--radius-sm)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                <div style={{ marginBottom: '8px' }}><strong>Employee ID:</strong> {employeeToDelete.employee_id || 'N/A'}</div>
+                <div style={{ marginBottom: '8px' }}><strong>Employee Name:</strong> {employeeToDelete.full_name}</div>
+                <div><strong>Email:</strong> {employeeToDelete.email}</div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  className="ghost-btn"
+                  onClick={() => { setShowDeleteModal(false); setEmployeeToDelete(null); }}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="danger-btn"
+                  onClick={confirmDeleteEmployee}
+                  disabled={isSaving}
+                  style={{ background: 'var(--danger)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.6 : 1 }}
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="spin" width={16} height={16} style={{ marginRight: '8px' }} />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
                   )}
                 </button>
               </div>
