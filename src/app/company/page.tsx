@@ -54,17 +54,11 @@ interface ExpiryItem {
   status: 'Critical' | 'Warning' | 'Valid';
 }
 
-const mockExpiries: ExpiryItem[] = [
-  { empCode: 'EMP-001', name: 'Zayed Al-Mansoori', docType: 'Visa', expiryDate: '2026-08-10', daysRemaining: 6, status: 'Critical' },
-  { empCode: 'EMP-002', name: 'Rashid Khan', docType: 'Emirates ID', expiryDate: '2026-08-18', daysRemaining: 14, status: 'Warning' },
-  { empCode: 'EMP-003', name: 'Tariq Mahmoud', docType: 'Labour Card', expiryDate: '2026-08-25', daysRemaining: 21, status: 'Warning' },
-  { empCode: 'EMP-004', name: 'Vikram Singh', docType: 'Passport', expiryDate: '2027-02-15', daysRemaining: 195, status: 'Valid' },
-];
-
 export default function UAECompanyPage() {
   const [activeTab, setActiveTab] = useState<'expiries' | 'projects' | 'sites' | 'departments' | 'companies'>('projects');
   const [projects, setProjects] = useState<Project[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [expiries, setExpiries] = useState<ExpiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -258,7 +252,7 @@ export default function UAECompanyPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockExpiries.map((item, idx) => (
+                  {expiries.map((item: ExpiryItem, idx: number) => (
                     <tr key={idx}>
                       <td><strong>{item.empCode}</strong></td>
                       <td>{item.name}</td>

@@ -1,6 +1,40 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// Payroll calculation utility
+function calculatePayroll(
+  baseSalary: number,
+  hourlyRate: number,
+  regularHours: number,
+  overtimeHours: number,
+  overtimeRate: number = 1.25,
+  allowances: number = 0,
+  bonuses: number = 0,
+  deductions: number = 0,
+  advances: number = 0,
+  leaveDeductions: number = 0
+) {
+  const overtimePay = overtimeHours * hourlyRate * overtimeRate;
+  const regularPay = regularHours * hourlyRate;
+  const grossPay = baseSalary + regularPay + overtimePay + allowances + bonuses;
+  const netPay = grossPay - deductions - advances - leaveDeductions;
+
+  return {
+    base_salary: baseSalary,
+    hourly_rate: hourlyRate,
+    normal_hours: regularHours,
+    overtime_hours: overtimeHours,
+    overtime_rate: overtimeRate,
+    overtime_pay: overtimePay,
+    allowances,
+    bonuses,
+    deductions,
+    advances,
+    leave_deductions: leaveDeductions,
+    net_salary: netPay,
+  };
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -120,7 +154,7 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, company_id')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -150,17 +184,26 @@ export async function POST(request: Request) {
       .single();
 
     if (runError) {
+      console.error('POST /api/payroll run error:', runError);
       return NextResponse.json({ error: runError.message }, { status: 500 });
     }
 
-    // Get all active employees
-    const { data: employees, error: empError } = await supabase
+    // Get all active employees from the same company (tenant isolation)
+    let employeesQuery = supabase
       .from('profiles')
-      .select('id, employee_id, full_name, basic_salary, hourly_rate, position, department_id')
+      .select('id, employee_id, full_name, basic_salary, hourly_rate, position, department_id, company_id')
       .eq('employment_status', 'Active')
       .in('role', ['employee', 'manager']);
 
+    // Apply company filter if user has a company
+    if (profile.company_id) {
+      employeesQuery = employeesQuery.eq('company_id', profile.company_id);
+    }
+
+    const { data: employees, error: empError } = await employeesQuery;
+
     if (empError) {
+      console.error('POST /api/payroll employees error:', empError);
       return NextResponse.json({ error: empError.message }, { status: 500 });
     }
 
@@ -185,31 +228,41 @@ export async function POST(request: Request) {
       const totalOvertimeHours = attendance?.reduce((sum: number, a: any) => sum + (a.overtime_hours || 0), 0) || 0;
       const absentDays = attendance?.filter((a: any) => a.status === 'Absent').length || 0;
 
-      // Calculate salary
+      // Use actual employee salary data - no hardcoded assumptions
       const baseSalary = employee.basic_salary || 0;
-      const hourlyRate = employee.hourly_rate || (baseSalary / 208); // 208 hours/month
-      const overtimePay = totalOvertimeHours * hourlyRate * 1.25; // 1.25x overtime rate
-      const allowances = baseSalary * 0.4; // 40% of basic as housing/transport allowance
-      const leaveDeductions = absentDays * (baseSalary / 26); // Deduct for absent days
-      const netSalary = baseSalary + allowances + overtimePay - leaveDeductions;
+      const hourlyRate = employee.hourly_rate || (baseSalary > 0 ? baseSalary / 208 : 0); // 208 hours/month fallback
+      
+      // Calculate payroll using centralized utility
+      const payrollCalc = calculatePayroll(
+        baseSalary,
+        hourlyRate,
+        totalRegularHours,
+        totalOvertimeHours,
+        1.25, // Default overtime rate (should be configurable per company/employee)
+        0, // Allowances - should be configurable per employee
+        0, // Bonuses - should be configurable per employee
+        0, // Deductions - should be configurable per employee
+        0, // Advances - should be configurable per employee
+        absentDays * (baseSalary / 26) // Leave deductions for absent days
+      );
 
       const { data: payrollItem } = await supabase
         .from('payroll_items')
         .insert({
           payroll_run_id: payrollRun.id,
           employee_id: employee.id,
-          base_salary: baseSalary,
-          hourly_rate: hourlyRate,
-          normal_hours: totalRegularHours,
-          overtime_hours: totalOvertimeHours,
-          overtime_rate: 1.25,
-          overtime_pay: overtimePay,
-          allowances: allowances,
-          bonuses: 0,
-          deductions: 0,
-          advances: 0,
-          leave_deductions: leaveDeductions,
-          net_salary: netSalary,
+          base_salary: payrollCalc.base_salary,
+          hourly_rate: payrollCalc.hourly_rate,
+          normal_hours: payrollCalc.normal_hours,
+          overtime_hours: payrollCalc.overtime_hours,
+          overtime_rate: payrollCalc.overtime_rate,
+          overtime_pay: payrollCalc.overtime_pay,
+          allowances: payrollCalc.allowances,
+          bonuses: payrollCalc.bonuses,
+          deductions: payrollCalc.deductions,
+          advances: payrollCalc.advances,
+          leave_deductions: payrollCalc.leave_deductions,
+          net_salary: payrollCalc.net_salary,
           status: 'Pending',
         })
         .select()
@@ -217,7 +270,7 @@ export async function POST(request: Request) {
 
       if (payrollItem) {
         payrollItems.push(payrollItem);
-        totalAmount += netSalary;
+        totalAmount += payrollCalc.net_salary;
       }
     }
 
@@ -233,6 +286,7 @@ export async function POST(request: Request) {
       .single();
 
     if (updateError) {
+      console.error('POST /api/payroll update error:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
@@ -244,6 +298,7 @@ export async function POST(request: Request) {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
+    console.error('POST /api/payroll error:', err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

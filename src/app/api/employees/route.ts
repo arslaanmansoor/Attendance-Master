@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getPlanKeyFromPriceId, getPlanLimits } from '@/lib/subscription';
 
 export async function GET(request: Request) {
@@ -108,8 +109,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let createdAuthUserId: string | null = null;
+  
   try {
     const supabase = await createClient();
+    const supabaseAdmin = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -118,7 +122,7 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, company_id')
       .eq('id', user.id)
       .single();
 
@@ -147,7 +151,8 @@ export async function POST(request: Request) {
       working_hours_per_day,
       weekly_off_day,
       notes,
-      employment_status
+      employment_status,
+      createAuthAccount = false // Optional: whether to create Auth account
     } = body;
 
     if (!full_name || !email) {
@@ -199,30 +204,8 @@ export async function POST(request: Request) {
     // Generate employee_id if not provided
     const newEmployeeId = employee_id || `EMP-${String(count || 0 + 1).padStart(3, '0')}`;
 
-    // Create auth user first (simplified - in production use proper invite flow)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password: 'TempPassword123!', // In production, send invite email
-      options: {
-        data: {
-          full_name,
-          employee_id: newEmployeeId,
-        }
-      }
-    });
-
-    if (authError) {
-      console.error('Auth error:', authError);
-      return NextResponse.json({ error: authError.message }, { status: 400 });
-    }
-
-    if (!authData.user) {
-      console.error('No user data returned from auth');
-      return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
-    }
-
     // Get the current user's company_id if not provided
-    let finalCompanyId = company_id;
+    let finalCompanyId = company_id || profile.company_id;
     if (!finalCompanyId) {
       const { data: currentUserProfile } = await supabase
         .from('profiles')
@@ -232,9 +215,39 @@ export async function POST(request: Request) {
       finalCompanyId = currentUserProfile?.company_id;
     }
 
+    // Create Auth user only if requested (using Admin API)
+    let authUserId: string | null = null;
+    if (createAuthAccount) {
+      // Generate a secure random password
+      const password = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12).toUpperCase();
+      
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name,
+          employee_id: newEmployeeId,
+        },
+      });
+
+      if (authError) {
+        console.error('Admin auth creation error:', authError);
+        return NextResponse.json({ error: `Failed to create auth user: ${authError.message}` }, { status: 400 });
+      }
+
+      if (!authData.user) {
+        console.error('No user data returned from admin auth');
+        return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 });
+      }
+
+      authUserId = authData.user.id;
+      createdAuthUserId = authUserId;
+    }
+
     // Build insert object with only fields that exist in v3 schema
     const insertData: any = {
-      id: authData.user.id,
+      id: authUserId,
       employee_id: newEmployeeId,
       email,
       full_name,
@@ -282,6 +295,17 @@ export async function POST(request: Request) {
 
     if (profileError) {
       console.error('Profile insert error:', profileError);
+      
+      // Clean up Auth user if profile creation failed
+      if (createdAuthUserId) {
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
+          console.log('Cleaned up orphaned auth user:', createdAuthUserId);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup auth user:', cleanupError);
+        }
+      }
+      
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
 
@@ -293,6 +317,18 @@ export async function POST(request: Request) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
     console.error('POST /api/employees error:', err);
+    
+    // Clean up Auth user if error occurred
+    if (createdAuthUserId) {
+      try {
+        const supabaseAdmin = createAdminClient();
+        await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
+        console.log('Cleaned up orphaned auth user after error:', createdAuthUserId);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user after error:', cleanupError);
+      }
+    }
+    
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -300,6 +336,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const supabase = await createClient();
+    const supabaseAdmin = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -308,7 +345,7 @@ export async function PUT(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, company_id')
       .eq('id', user.id)
       .single();
 
@@ -323,17 +360,45 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
     }
 
+    // Verify employee exists and belongs to the same company
+    const { data: existingEmployee, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id, company_id, email')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !existingEmployee) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+    }
+
+    // Verify company ownership (tenant isolation)
+    if (profile.company_id && existingEmployee.company_id && profile.company_id !== existingEmployee.company_id) {
+      return NextResponse.json({ error: 'Cannot edit employee from another company' }, { status: 403 });
+    }
+
     // Check if employee_id conflicts with another record
     if (employee_id) {
-      const { data: existing } = await supabase
+      const { data: conflicting } = await supabase
         .from('profiles')
         .select('id')
         .eq('employee_id', employee_id)
         .neq('id', id)
         .single();
 
-      if (existing) {
+      if (conflicting) {
         return NextResponse.json({ error: 'Employee ID already exists.' }, { status: 400 });
+      }
+    }
+
+    // Sync Auth email if it exists and email changed
+    if (email && email !== existingEmployee.email) {
+      // Check if this profile has an associated Auth user (id references auth.users)
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(id, { email });
+        console.log('Auth email synchronized for user:', id);
+      } catch (authError) {
+        console.error('Failed to sync auth email:', authError);
+        // Don't fail the update if auth sync fails - profile may not have auth user
       }
     }
 
@@ -405,6 +470,7 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient();
+    const supabaseAdmin = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -413,7 +479,7 @@ export async function DELETE(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, company_id')
       .eq('id', user.id)
       .single();
 
@@ -428,14 +494,56 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    // Verify employee exists and belongs to the same company
+    const { data: employeeToDelete, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id, company_id, email')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !employeeToDelete) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+    }
+
+    // Verify company ownership (tenant isolation)
+    if (profile.company_id && employeeToDelete.company_id && profile.company_id !== employeeToDelete.company_id) {
+      return NextResponse.json({ error: 'Cannot delete employee from another company' }, { status: 403 });
+    }
+
+    // Check if employee has related records (attendance, payroll)
+    const { count: attendanceCount } = await supabase
+      .from('attendance_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('employee_id', id);
+
+    const { count: payrollCount } = await supabase
+      .from('payroll_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('employee_id', id);
+
+    if (attendanceCount && attendanceCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete employee with attendance records. Please archive or deactivate instead.',
+        hasRecords: true 
+      }, { status: 400 });
+    }
+
+    if (payrollCount && payrollCount > 0) {
+      return NextResponse.json({ 
+        error: 'Cannot delete employee with payroll records. Please archive or deactivate instead.',
+        hasRecords: true 
+      }, { status: 400 });
+    }
+
+    // Delete the profile (this cascades to auth.users due to FK constraint)
+    const { error: deleteError } = await supabase
       .from('profiles')
       .delete()
       .eq('id', id);
 
-    if (error) {
-      console.error('DELETE /api/employees error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (deleteError) {
+      console.error('DELETE /api/employees error:', deleteError);
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
     }
 
     return NextResponse.json({

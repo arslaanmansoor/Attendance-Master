@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -18,6 +18,7 @@ import {
   Search,
 } from 'lucide-react';
 import Papa from 'papaparse';
+import { createClient } from '@/lib/supabase/client';
 
 type ReportType =
   | 'emp_attendance'
@@ -33,6 +34,19 @@ type ReportType =
   | 'summary_employee'
   | 'summary_project'
   | 'summary_company';
+
+interface ReportData {
+  empCode?: string;
+  empName?: string;
+  project?: string;
+  date?: string;
+  presentDays?: number;
+  overtimeHrs?: number;
+  basicSalary?: number;
+  netPay?: number;
+  status?: string;
+  [key: string]: any;
+}
 
 const reportOptions: { key: ReportType; label: string; category: 'Detailed' | 'Summary' }[] = [
   { key: 'emp_attendance', label: 'Employee Attendance Report', category: 'Detailed' },
@@ -50,29 +64,218 @@ const reportOptions: { key: ReportType; label: string; category: 'Detailed' | 'S
   { key: 'summary_company', label: 'Company Overview Summary', category: 'Summary' },
 ];
 
-const mockReportData = [
-  { empCode: 'EMP-001', empName: 'Zayed Al-Mansoori', project: 'Burj Vista Tower Maintenance', date: '2026-08-03', presentDays: 24, overtimeHrs: 14, basicSalary: 7200, netPay: 16705.85, status: 'Present' },
-  { empCode: 'EMP-002', empName: 'Rashid Khan', project: 'Dubai Logistics Warehouse B', date: '2026-08-03', presentDays: 26, overtimeHrs: 22, basicSalary: 3900, netPay: 9515.63, status: 'Present' },
-  { empCode: 'EMP-003', empName: 'Tariq Mahmoud', project: 'Downtown Commercial Plaza', date: '2026-08-03', presentDays: 22, overtimeHrs: 0, basicSalary: 5100, netPay: 10466.67, status: 'Sick Leave' },
-  { empCode: 'EMP-004', empName: 'Vikram Singh', project: 'Sharjah Residential Complex', date: '2026-08-03', presentDays: 25, overtimeHrs: 18, basicSalary: 4200, netPay: 8900.00, status: 'Present' },
-];
-
 export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<ReportType>('emp_attendance');
   const [searchQuery, setSearchQuery] = useState('');
-  const [startDate, setStartDate] = useState('2026-08-01');
-  const [endDate, setEndDate] = useState('2026-08-31');
+  const [startDate, setStartDate] = useState(() => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    return firstDay.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const today = new Date();
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return lastDay.toISOString().split('T')[0];
+  });
+  const [reportData, setReportData] = useState<ReportData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const activeReportConfig = reportOptions.find((r) => r.key === selectedReport);
 
-  const filteredData = mockReportData.filter((item) => {
-    if (searchQuery && !item.empName.toLowerCase().includes(searchQuery.toLowerCase()) && !item.project.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
+  // Fetch report data based on selected report type
+  useEffect(() => {
+    fetchReportData();
+  }, [selectedReport, startDate, endDate]);
+
+  const fetchReportData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const supabase = createClient();
+      let data: ReportData[] = [];
+
+      switch (selectedReport) {
+        case 'emp_attendance':
+        case 'daily_attendance':
+          {
+            const { data: attendance } = await supabase
+              .from('attendance_logs')
+              .select(`
+                *,
+                profiles!inner(employee_id, full_name, position)
+              `)
+              .gte('date', startDate)
+              .lte('date', endDate)
+              .order('date', { ascending: false });
+            
+            data = (attendance || []).map((item: any) => ({
+              empCode: item.profiles.employee_id,
+              empName: item.profiles.full_name,
+              date: item.date,
+              timeIn: item.time_in,
+              timeOut: item.time_out,
+              totalHours: item.total_hours,
+              regularHours: item.regular_hours,
+              overtimeHrs: item.overtime_hours,
+              status: item.status,
+            }));
+          }
+          break;
+
+        case 'emp_payroll':
+          {
+            const { data: payroll } = await supabase
+              .from('payroll_items')
+              .select(`
+                *,
+                profiles!inner(employee_id, full_name, position, basic_salary),
+                payroll_runs!inner(title, period_start, period_end)
+              `)
+              .gte('created_at', startDate)
+              .lte('created_at', endDate)
+              .order('created_at', { ascending: false });
+            
+            data = (payroll || []).map((item: any) => ({
+              empCode: item.profiles.employee_id,
+              empName: item.profiles.full_name,
+              payrollRun: item.payroll_runs.title,
+              period: `${item.payroll_runs.period_start} to ${item.payroll_runs.period_end}`,
+              basicSalary: item.base_salary,
+              normalHours: item.normal_hours,
+              overtimeHrs: item.overtime_hours,
+              overtimePay: item.overtime_pay,
+              allowances: item.allowances,
+              deductions: item.deductions,
+              netPay: item.net_salary,
+              status: item.status,
+            }));
+          }
+          break;
+
+        case 'monthly_attendance':
+          {
+            const { data: attendance } = await supabase
+              .from('attendance_logs')
+              .select(`
+                employee_id,
+                profiles!inner(employee_id, full_name),
+                date,
+                total_hours,
+                regular_hours,
+                overtime_hours,
+                status
+              `)
+              .gte('date', startDate)
+              .lte('date', endDate);
+            
+            // Group by employee
+            const grouped = (attendance || []).reduce((acc: any, item: any) => {
+              const key = item.employee_id;
+              if (!acc[key]) {
+                acc[key] = {
+                  empCode: item.profiles.employee_id,
+                  empName: item.profiles.full_name,
+                  totalHours: 0,
+                  regularHours: 0,
+                  overtimeHrs: 0,
+                  presentDays: 0,
+                  absentDays: 0,
+                };
+              }
+              acc[key].totalHours += item.total_hours || 0;
+              acc[key].regularHours += item.regular_hours || 0;
+              acc[key].overtimeHrs += item.overtime_hours || 0;
+              if (item.status === 'Present') acc[key].presentDays++;
+              if (item.status === 'Absent') acc[key].absentDays++;
+              return acc;
+            }, {});
+            
+            data = Object.values(grouped);
+          }
+          break;
+
+        case 'overtime_report':
+          {
+            const { data: attendance } = await supabase
+              .from('attendance_logs')
+              .select(`
+                *,
+                profiles!inner(employee_id, full_name, position)
+              `)
+              .gte('date', startDate)
+              .lte('date', endDate)
+              .gt('overtime_hours', 0)
+              .order('overtime_hours', { ascending: false });
+            
+            data = (attendance || []).map((item: any) => ({
+              empCode: item.profiles.employee_id,
+              empName: item.profiles.full_name,
+              position: item.profiles.position,
+              date: item.date,
+              totalHours: item.total_hours,
+              regularHours: item.regular_hours,
+              overtimeHrs: item.overtime_hours,
+            }));
+          }
+          break;
+
+        case 'leave_report':
+          {
+            const { data: leaves } = await supabase
+              .from('leave_requests')
+              .select(`
+                *,
+                profiles!inner(employee_id, full_name)
+              `)
+              .gte('start_date', startDate)
+              .lte('end_date', endDate)
+              .order('created_at', { ascending: false });
+            
+            data = (leaves || []).map((item: any) => ({
+              empCode: item.profiles.employee_id,
+              empName: item.profiles.full_name,
+              leaveType: item.leave_type,
+              startDate: item.start_date,
+              endDate: item.end_date,
+              reason: item.reason,
+              status: item.status,
+            }));
+          }
+          break;
+
+        default:
+          // For other report types, return empty array for now
+          data = [];
+      }
+
+      setReportData(data);
+    } catch (err) {
+      console.error('Error fetching report data:', err);
+      setError('Failed to load report data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredData = reportData.filter((item) => {
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        (item.empName && item.empName.toLowerCase().includes(searchLower)) ||
+        (item.project && item.project.toLowerCase().includes(searchLower)) ||
+        (item.empCode && item.empCode.toLowerCase().includes(searchLower))
+      );
     }
     return true;
   });
 
   const exportCSV = () => {
+    if (filteredData.length === 0) {
+      alert('No data to export');
+      return;
+    }
     const csv = Papa.unparse(filteredData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -108,15 +311,15 @@ export default function ReportsPage() {
             </Link>
             <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Reports & Executive Analytics</h1>
             <p className="muted" style={{ marginTop: '4px' }}>
-              Generate, filter, print, and export 13 comprehensive reports (CSV, Excel, PDF ready).
+              Generate, filter, print, and export comprehensive reports from real database data.
             </p>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }} className="no-print">
-            <button className="btn-secondary" onClick={handlePrint}>
+            <button className="btn-secondary" onClick={handlePrint} disabled={loading}>
               <Printer width={16} height={16} /> Print Report
             </button>
-            <button className="primary-btn" onClick={exportCSV}>
+            <button className="primary-btn" onClick={exportCSV} disabled={loading || filteredData.length === 0}>
               <FileSpreadsheet width={16} height={16} /> Export CSV / Excel
             </button>
           </div>
@@ -205,6 +408,9 @@ export default function ReportsPage() {
                 <input type="date" className="form-input" style={{ width: 'auto' }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                 <span className="muted" style={{ fontSize: '0.85rem' }}>To:</span>
                 <input type="date" className="form-input" style={{ width: 'auto' }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                <button className="btn-secondary" onClick={fetchReportData} disabled={loading}>
+                  {loading ? 'Loading...' : 'Refresh'}
+                </button>
               </div>
             </div>
 
@@ -214,49 +420,63 @@ export default function ReportsPage() {
                 <div>
                   <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>{activeReportConfig?.label}</h2>
                   <p className="muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
-                    Al-Mansoor Construction LLC | Period: {startDate} to {endDate}
+                    Period: {startDate} to {endDate}
                   </p>
                 </div>
                 <span className="badge-chip info">{activeReportConfig?.category}</span>
               </div>
 
-              {/* Data Table */}
-              <div style={{ overflowX: 'auto' }}>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Emp Code</th>
-                      <th>Employee Name</th>
-                      <th>Project / Site</th>
-                      <th>Present Days</th>
-                      <th>Overtime Hrs</th>
-                      <th>Basic Salary</th>
-                      <th>Net Salary</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredData.map((row, idx) => (
-                      <tr key={idx}>
-                        <td><strong>{row.empCode}</strong></td>
-                        <td>{row.empName}</td>
-                        <td style={{ fontSize: '0.88rem' }}>{row.project}</td>
-                        <td style={{ fontSize: '0.88rem' }}>{row.presentDays} days</td>
-                        <td style={{ fontSize: '0.88rem', color: 'var(--warning)', fontWeight: 600 }}>+{row.overtimeHrs} hrs</td>
-                        <td style={{ fontSize: '0.88rem' }}>${row.basicSalary.toLocaleString()}</td>
-                        <td><strong style={{ color: 'var(--primary)' }}>${row.netPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
-                        <td>
-                          <span className={`badge-chip ${row.status === 'Present' ? 'success' : 'warning'}`}>{row.status}</span>
-                        </td>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p className="muted">Loading report data...</p>
+                </div>
+              ) : error ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p style={{ color: 'var(--danger)' }}>{error}</p>
+                </div>
+              ) : filteredData.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p className="muted">No data found for the selected report type and date range.</p>
+                </div>
+              ) : (
+                /* Data Table */
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        {Object.keys(filteredData[0]).map((key) => (
+                          <th key={key} style={{ textTransform: 'capitalize' }}>
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredData.map((row, idx) => (
+                        <tr key={idx}>
+                          {Object.values(row).map((value, cellIdx) => (
+                            <td key={cellIdx}>
+                              {typeof value === 'number' && (keyIncludes(['salary', 'pay', 'hours'], Object.keys(row)[cellIdx])) 
+                                ? (keyIncludes(['salary', 'pay'], Object.keys(row)[cellIdx]) 
+                                    ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                                    : `${value.toFixed(2)} hrs`)
+                                : value}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function keyIncludes(arr: string[], key: string): boolean {
+  return arr.some(k => key.toLowerCase().includes(k));
 }

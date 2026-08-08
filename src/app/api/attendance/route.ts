@@ -4,71 +4,163 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: logs, error } = await supabase
-      .from('attendance_logs')
-      .select('*, profiles(full_name, avatar_url, role, position)')
-      .eq('date', date)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      // Fallback mock data if DB table not yet provisioned
-      return NextResponse.json({
-        success: true,
-        source: 'mock',
-        data: [
-          { id: '1', employee_id: 'e1', date, status: 'present', check_in: '08:54 AM', overtime_hours: 1.5, profile: { full_name: 'Alicia Chen' } },
-          { id: '2', employee_id: 'e2', date, status: 'late', check_in: '09:32 AM', overtime_hours: 0, profile: { full_name: 'Marcus Lee' } },
-          { id: '3', employee_id: 'e3', date, status: 'present', check_in: '08:45 AM', overtime_hours: 2.0, profile: { full_name: 'Diana Ortiz' } },
-        ],
-      });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, data: logs });
+    const { searchParams } = new URL(request.url);
+    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const employeeId = searchParams.get('employeeId');
+
+    let query = supabase
+      .from('attendance_logs')
+      .select('*, profiles(full_name, avatar_url, role, position, employee_id)')
+      .eq('date', date);
+
+    if (employeeId) {
+      query = query.eq('employee_id', employeeId);
+    }
+
+    const { data: logs, error } = await query.order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('GET /api/attendance error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, data: logs || [] });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    console.error('GET /api/attendance error:', err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
-    const { employee_id, status, notes, overtime_hours } = body;
+    const { employee_id, date, time_in, time_out, break_hours, status, notes, project_id } = body;
 
     if (!employee_id) {
-      return NextResponse.json({ success: false, error: 'employee_id is required' }, { status: 400 });
+      return NextResponse.json({ error: 'employee_id is required' }, { status: 400 });
     }
 
-    const date = new Date().toISOString().split('T')[0];
-    const check_in = new Date().toISOString();
+    const attendanceDate = date || new Date().toISOString().split('T')[0];
 
-    const { data, error } = await supabase
+    // Check if attendance record already exists for this employee and date
+    const { data: existing, error: checkError } = await supabase
       .from('attendance_logs')
-      .upsert(
-        {
-          employee_id,
-          date,
-          check_in,
-          status: status || 'present',
-          overtime_hours: overtime_hours || 0,
-          notes: notes || null,
-        },
-        { onConflict: 'employee_id,date' }
-      )
-      .select()
-      .single();
+      .select('*')
+      .eq('employee_id', employee_id)
+      .eq('date', attendanceDate)
+      .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    if (checkError) {
+      console.error('POST /api/attendance check error:', checkError);
+      return NextResponse.json({ error: checkError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    if (existing) {
+      // Update existing record
+      const updateData: any = {
+        time_in: time_in || existing.time_in,
+        time_out: time_out || existing.time_out,
+        break_hours: break_hours ?? existing.break_hours,
+        status: status || existing.status,
+        notes: notes || existing.notes,
+        project_id: project_id || existing.project_id,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Calculate hours if both time_in and time_out are provided
+      if (updateData.time_in && updateData.time_out) {
+        const totalMinutes = calculateTimeDifference(updateData.time_in, updateData.time_out);
+        const breakMinutes = (updateData.break_hours || 1) * 60;
+        const netMinutes = Math.max(0, totalMinutes - breakMinutes);
+        
+        updateData.total_hours = parseFloat((netMinutes / 60).toFixed(2));
+        updateData.regular_hours = Math.min(updateData.total_hours, 9); // 9-hour workday
+        updateData.overtime_hours = Math.max(0, updateData.total_hours - 9);
+      }
+
+      const { data: updated, error: updateError } = await supabase
+        .from('attendance_logs')
+        .update(updateData)
+        .eq('id', existing.id)
+        .select('*, profiles(full_name, avatar_url, role, position)')
+        .single();
+
+      if (updateError) {
+        console.error('POST /api/attendance update error:', updateError);
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, data: updated, action: 'updated' });
+    } else {
+      // Create new record
+      const insertData: any = {
+        employee_id,
+        date: attendanceDate,
+        time_in: time_in || new Date().toTimeString().slice(0, 5),
+        time_out: time_out || null,
+        break_hours: break_hours || 1,
+        status: status || 'Present',
+        notes: notes || null,
+        project_id: project_id || null,
+        day: new Date(attendanceDate).toLocaleDateString('en-US', { weekday: 'long' }),
+      };
+
+      // Calculate hours if both time_in and time_out are provided
+      if (insertData.time_in && insertData.time_out) {
+        const totalMinutes = calculateTimeDifference(insertData.time_in, insertData.time_out);
+        const breakMinutes = (insertData.break_hours || 1) * 60;
+        const netMinutes = Math.max(0, totalMinutes - breakMinutes);
+        
+        insertData.total_hours = parseFloat((netMinutes / 60).toFixed(2));
+        insertData.regular_hours = Math.min(insertData.total_hours, 9);
+        insertData.overtime_hours = Math.max(0, insertData.total_hours - 9);
+      }
+
+      const { data: created, error: insertError } = await supabase
+        .from('attendance_logs')
+        .insert(insertData)
+        .select('*, profiles(full_name, avatar_url, role, position)')
+        .single();
+
+      if (insertError) {
+        console.error('POST /api/attendance insert error:', insertError);
+        return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true, data: created, action: 'created' });
+    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    console.error('POST /api/attendance error:', err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+// Helper function to calculate time difference in minutes
+function calculateTimeDifference(timeIn: string, timeOut: string): number {
+  const [inHours, inMinutes] = timeIn.split(':').map(Number);
+  const [outHours, outMinutes] = timeOut.split(':').map(Number);
+  
+  const inDate = new Date();
+  inDate.setHours(inHours, inMinutes, 0, 0);
+  
+  const outDate = new Date();
+  outDate.setHours(outHours, outMinutes, 0, 0);
+  
+  const diffMs = outDate.getTime() - inDate.getTime();
+  return Math.floor(diffMs / 60000); // Convert to minutes
 }
