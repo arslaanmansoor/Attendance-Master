@@ -109,24 +109,33 @@ export default function EmployeesPage() {
 
   const fetchEmployees = async () => {
     try {
+      console.log('[fetchEmployees] Starting...');
       setLoading(true);
       const params = new URLSearchParams();
       if (departmentFilter !== 'All') params.append('department', departmentFilter);
       if (statusFilter !== 'All') params.append('status', statusFilter);
       if (search) params.append('search', search);
 
+      console.log('[fetchEmployees] Request params:', params.toString());
       const response = await fetch(`/api/employees?${params.toString()}`);
       const data = await response.json();
 
+      console.log('[fetchEmployees] Response status:', response.status);
+      console.log('[fetchEmployees] Response data:', data);
+
       if (response.ok) {
+        console.log('[fetchEmployees] Employees loaded:', data.employees?.length);
         setEmployees(data.employees || []);
       } else {
+        console.error('[fetchEmployees] API error:', data.error);
         showNotification('error', data.error || 'Failed to fetch employees');
       }
     } catch (error) {
+      console.error('[fetchEmployees] Unexpected error:', error);
       showNotification('error', 'Failed to fetch employees');
     } finally {
       setLoading(false);
+      console.log('[fetchEmployees] Loading state set to false');
     }
   };
 
@@ -178,25 +187,43 @@ export default function EmployeesPage() {
 
   const fetchCompanies = async () => {
     try {
+      console.log('[fetchCompanies] Starting...');
       const supabase = (await import('@/lib/supabase/client')).createClient();
+      
       // Multi-tenant security: Only fetch the current user's company
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('No authenticated user found');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('[fetchCompanies] Auth error:', userError);
+        showNotification('error', 'Authentication failed');
         return;
       }
+      if (!user) {
+        console.error('[fetchCompanies] No authenticated user found');
+        showNotification('error', 'Not authenticated');
+        return;
+      }
+      console.log('[fetchCompanies] User authenticated:', user.id);
 
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('company_id')
         .eq('id', user.id)
         .single();
 
-      if (!userProfile?.company_id) {
-        console.warn('User has no company_id assigned');
+      if (profileError) {
+        console.error('[fetchCompanies] Profile fetch error:', profileError);
+        showNotification('error', 'Failed to load profile');
         return;
       }
 
+      console.log('[fetchCompanies] User profile:', userProfile);
+      if (!userProfile?.company_id) {
+        console.warn('[fetchCompanies] User has no company_id assigned');
+        showNotification('error', 'Your account is not assigned to a company');
+        return;
+      }
+
+      console.log('[fetchCompanies] Fetching company with ID:', userProfile.company_id);
       const { data, error } = await supabase
         .from('companies')
         .select('*')
@@ -204,13 +231,19 @@ export default function EmployeesPage() {
         .single();
 
       if (error) {
-        console.error('Failed to fetch company:', error);
-        showNotification('error', 'Failed to load company');
+        console.error('[fetchCompanies] Company fetch error:', JSON.stringify(error, null, 2));
+        const errorMessage = error.message || JSON.stringify(error);
+        showNotification('error', `Company error: ${errorMessage}`);
       } else if (data) {
+        console.log('[fetchCompanies] Company loaded successfully:', data);
         setCompanies([data]);
+      } else {
+        console.warn('[fetchCompanies] No company data returned');
+        showNotification('error', 'Company not found');
       }
     } catch (error) {
-      console.error('Failed to fetch companies:', error);
+      console.error('[fetchCompanies] Unexpected error:', error);
+      showNotification('error', 'Failed to load company');
     }
   };
 
