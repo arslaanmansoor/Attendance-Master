@@ -179,12 +179,35 @@ export default function EmployeesPage() {
   const fetchCompanies = async () => {
     try {
       const supabase = (await import('@/lib/supabase/client')).createClient();
-      const { data, error } = await supabase.from('companies').select('*');
+      // Multi-tenant security: Only fetch the current user's company
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!userProfile?.company_id) {
+        console.warn('User has no company_id assigned');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', userProfile.company_id)
+        .single();
+
       if (error) {
-        console.error('Failed to fetch companies:', error);
-        showNotification('error', 'Failed to load companies');
+        console.error('Failed to fetch company:', error);
+        showNotification('error', 'Failed to load company');
       } else if (data) {
-        setCompanies(data);
+        setCompanies([data]);
       }
     } catch (error) {
       console.error('Failed to fetch companies:', error);
@@ -209,41 +232,53 @@ export default function EmployeesPage() {
     return employees;
   }, [employees]);
 
-  const handleAddEmployee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate required fields
-    if (!formData.employee_id) {
+  const handleAddEmployee = async () => {
+    if (!formData.employee_id.trim()) {
       showNotification('error', 'Employee ID is required');
       return;
     }
-    if (!formData.full_name) {
+    if (formData.employee_id.trim().length < 2) {
+      showNotification('error', 'Employee ID must be at least 2 characters');
+      return;
+    }
+    if (!formData.full_name.trim()) {
       showNotification('error', 'Employee Name is required');
+      return;
+    }
+    if (formData.full_name.trim().length < 2) {
+      showNotification('error', 'Employee Name must be at least 2 characters');
       return;
     }
     if (!formData.email) {
       showNotification('error', 'Email is required');
       return;
     }
-    if (!formData.company_id) {
-      showNotification('error', 'Company is required');
-      return;
-    }
     if (!formData.department_id) {
       showNotification('error', 'Department is required');
       return;
     }
-    if (!formData.position) {
-      showNotification('error', 'Position is required');
+
+    // Auto-set company_id to current user's company
+    const supabase = (await import('@/lib/supabase/client')).createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      showNotification('error', 'User not authenticated');
       return;
     }
 
-    // Check if Employee ID already exists
-    const existingEmployee = employees.find(emp => emp.employee_id === formData.employee_id);
-    if (existingEmployee) {
-      showNotification('error', 'Employee ID already exists');
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!userProfile?.company_id) {
+      showNotification('error', 'Your account is not assigned to a company');
       return;
     }
+
+    // Set the company_id in form data
+    setFormData({ ...formData, company_id: userProfile.company_id });
 
     // Show confirmation modal
     setShowConfirmModal(true);
