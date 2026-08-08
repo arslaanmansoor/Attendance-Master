@@ -69,10 +69,13 @@ export default function EmployeesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [newDepartmentName, setNewDepartmentName] = useState('');
+  const [newDepartmentCode, setNewDepartmentCode] = useState('');
 
   // New employee form state
   const [formData, setFormData] = useState({
@@ -134,6 +137,42 @@ export default function EmployeesPage() {
       if (data) setDepartments(data);
     } catch (error) {
       console.error('Failed to fetch departments');
+    }
+  };
+
+  const handleAddDepartment = async () => {
+    if (!newDepartmentName.trim()) {
+      showNotification('error', 'Department name is required');
+      return;
+    }
+    if (!newDepartmentCode.trim()) {
+      showNotification('error', 'Department code is required');
+      return;
+    }
+
+    try {
+      const supabase = (await import('@/lib/supabase/client')).createClient();
+      const { data, error } = await supabase
+        .from('departments')
+        .insert({
+          name: newDepartmentName.trim(),
+          code: newDepartmentCode.trim().toUpperCase(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        showNotification('error', 'Failed to add department');
+        return;
+      }
+
+      showNotification('success', 'Department added successfully');
+      setNewDepartmentName('');
+      setNewDepartmentCode('');
+      setShowAddDepartmentModal(false);
+      fetchDepartments();
+    } catch (error) {
+      showNotification('error', 'Failed to add department');
     }
   };
 
@@ -412,7 +451,7 @@ export default function EmployeesPage() {
             <Search width={18} height={18} style={{ color: 'var(--muted)' }} />
             <input
               type="search"
-              placeholder="Search by name, email, or role..."
+              placeholder="Search by Employee ID, name, email, department..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -678,20 +717,31 @@ export default function EmployeesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                      Department
+                      Department *
                     </label>
-                    <select
-                      value={formData.department_id}
-                      onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map((dept) => (
-                        <option key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
+                        value={formData.department_id}
+                        onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
+                        required
+                        style={{ flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                      >
+                        <option value="">Select Department</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddDepartmentModal(true)}
+                        title="Add New Department"
+                        style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        + Add
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
@@ -923,6 +973,72 @@ export default function EmployeesPage() {
           </div>
         )}
 
+        {/* Add Department Modal */}
+        {showAddDepartmentModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+            onClick={() => setShowAddDepartmentModal(false)}
+          >
+            <div
+              className="card"
+              style={{ width: '90%', maxWidth: '400px', padding: '28px', background: 'var(--surface)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Add New Department</h3>
+                <button className="icon-btn" onClick={() => { setShowAddDepartmentModal(false); setNewDepartmentName(''); setNewDepartmentCode(''); }}>
+                  <X width={18} height={18} />
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Department Name *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Finance"
+                    value={newDepartmentName}
+                    onChange={(e) => setNewDepartmentName(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Department Code *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. FIN"
+                    value={newDepartmentCode}
+                    onChange={(e) => setNewDepartmentCode(e.target.value.toUpperCase())}
+                    maxLength={10}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                  <button type="button" className="ghost-btn" onClick={() => { setShowAddDepartmentModal(false); setNewDepartmentName(''); setNewDepartmentCode(''); }}>
+                    Cancel
+                  </button>
+                  <button type="button" className="primary-btn" onClick={handleAddDepartment}>
+                    Add Department
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Confirmation Modal */}
         {showConfirmModal && (
           <div
@@ -1144,20 +1260,31 @@ export default function EmployeesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                      Department
+                      Department *
                     </label>
-                    <select
-                      value={formData.department_id}
-                      onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map((dept) => (
-                        <option key={dept.id} value={dept.id}>
-                          {dept.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
+                        value={formData.department_id}
+                        onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
+                        required
+                        style={{ flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                      >
+                        <option value="">Select Department</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddDepartmentModal(true)}
+                        title="Add New Department"
+                        style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        + Add
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>

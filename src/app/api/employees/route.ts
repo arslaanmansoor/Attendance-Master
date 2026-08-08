@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,position.ilike.%${search}%`);
+      query = query.or(`employee_id.ilike.%${search}%,full_name.ilike.%${search}%,email.ilike.%${search}%,position.ilike.%${search}%,departments.name.ilike.%${search}%`);
     }
 
     const { data: employees, error } = await query.order('created_at', { ascending: false });
@@ -159,16 +159,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name and email are required.' }, { status: 400 });
     }
 
-    // Check if employee_id already exists
+    // Get the current user's company_id if not provided
+    let finalCompanyId = company_id || profile.company_id;
+    if (!finalCompanyId) {
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+      finalCompanyId = currentUserProfile?.company_id;
+    }
+
+    // Check if employee_id already exists within the same company
     if (employee_id) {
       const { data: existing } = await supabase
         .from('profiles')
         .select('id')
         .eq('employee_id', employee_id)
-        .single();
+        .eq('company_id', finalCompanyId)
+        .maybeSingle();
 
       if (existing) {
-        return NextResponse.json({ error: 'Employee ID already exists.' }, { status: 400 });
+        return NextResponse.json({ error: `Employee ID ${employee_id} already exists in this company. Please enter a different ID.` }, { status: 400 });
       }
     }
 
@@ -203,17 +215,6 @@ export async function POST(request: Request) {
 
     // Generate employee_id if not provided
     const newEmployeeId = employee_id || `EMP-${String(count || 0 + 1).padStart(3, '0')}`;
-
-    // Get the current user's company_id if not provided
-    let finalCompanyId = company_id || profile.company_id;
-    if (!finalCompanyId) {
-      const { data: currentUserProfile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('id', user.id)
-        .single();
-      finalCompanyId = currentUserProfile?.company_id;
-    }
 
     // Create Auth user only if requested (using Admin API)
     let authUserId: string | null = null;
@@ -376,17 +377,21 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Cannot edit employee from another company' }, { status: 403 });
     }
 
-    // Check if employee_id conflicts with another record
+    // Check if employee_id conflicts with another record in the same company
     if (employee_id) {
       const { data: conflicting } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, company_id')
         .eq('employee_id', employee_id)
         .neq('id', id)
-        .single();
+        .maybeSingle();
 
       if (conflicting) {
-        return NextResponse.json({ error: 'Employee ID already exists.' }, { status: 400 });
+        // Only reject if the conflicting employee is in the same company
+        if (conflicting.company_id === existingEmployee.company_id) {
+          return NextResponse.json({ error: `Employee ID ${employee_id} already exists in this company.` }, { status: 400 });
+        }
+        // If different company, allow it (multi-tenant support)
       }
     }
 
